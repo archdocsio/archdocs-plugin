@@ -98,7 +98,7 @@ test('loadEvalEnv parses KEY=VALUE, ignores blank and comment lines, and preserv
 });
 
 test('buildClaudeArgs includes required flags and plugin only with skills', () => {
-  const required = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', 'C:/temp path/mcp.json', '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read'];
+  const required = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', 'C:/temp path/mcp.json', '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read', '--setting-sources', 'project'];
   const options = { mcpConfigPath: 'C:/temp path/mcp.json', pluginDir: 'K:/plugin path' };
   assert.deepEqual(buildClaudeArgs({ ...options, mode: 'without' }), required);
   assert.deepEqual(buildClaudeArgs({ ...options, mode: 'with' }), [...required, '--plugin-dir', options.pluginDir]);

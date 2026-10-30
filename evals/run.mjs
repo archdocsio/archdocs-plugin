@@ -39,7 +39,9 @@ Environment:
 export function buildClaudeArgs({ mode, mcpConfigPath, pluginDir }) {
   if (!['with', 'without'].includes(mode)) throw new Error(`Invalid mode: ${mode}`);
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', mcpConfigPath,
-    '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read'];
+    '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read',
+    // Skip user-level plugins, hooks and settings so both modes see the same clean agent.
+    '--setting-sources', 'project'];
   if (mode === 'with') args.push('--plugin-dir', pluginDir);
   return args;
 }
