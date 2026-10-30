@@ -1,6 +1,6 @@
-# Archdocs plugin for Claude Code and Codex
+# Archdocs plugin for Claude Code, Codex and Cursor
 
-Ask a coding agent to plan a change and it will write a design doc for a typo fix if you let it, then fill every gap it finds with a confident guess. This plugin connects Claude Code and Codex to [Archdocs](https://archdocs.io) and adds skills for what a tool list can't teach: when a change deserves a design doc, how to write one to your team's standard, and how to record what actually shipped.
+Ask a coding agent to plan a change and it will write a design doc for a typo fix if you let it, then fill every gap it finds with a confident guess. This plugin connects Claude Code, Codex and Cursor to [Archdocs](https://archdocs.io) and adds skills for what a tool list can't teach: when a change deserves a design doc, how to write one to your team's standard, and how to record what actually shipped.
 
 ## Install
 
@@ -34,6 +34,19 @@ codex plugin marketplace remove archdocs
 ```
 
 Design docs need an Archdocs Team plan or higher. On a Free plan the agent says so once and carries on without one.
+
+### Cursor
+
+The repository is a Cursor plugin (`.cursor-plugin/plugin.json`) with the same skills, commands and MCP server. Until it's listed in the Cursor Marketplace, add the pieces by hand:
+
+1. Add the MCP server in Cursor Settings > MCP, or in `~/.cursor/mcp.json`:
+
+   ```json
+   { "mcpServers": { "archdocs": { "url": "https://mcp.archdocs.io/mcp" } } }
+   ```
+
+   Cursor opens the Archdocs sign-in the first time it connects.
+2. Copy the folders inside `skills/` into `.cursor/skills/` in your project, or `~/.cursor/skills/` for every project.
 
 ## Commands
 

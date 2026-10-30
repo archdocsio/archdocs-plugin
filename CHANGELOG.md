@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+Cursor plugin manifest (`.cursor-plugin/plugin.json`) with the same skills, commands and hosted MCP server.
+
 ## 0.2.0
 
 - Add Codex plugin and marketplace manifests for the skills and hosted Archdocs MCP server.
