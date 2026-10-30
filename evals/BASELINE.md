@@ -2,19 +2,21 @@
 
 No baseline or with-skills eval has been run. The results cells below are intentionally empty.
 
-## Prepare the eval orgs manually
+## Prepare the local eval orgs
 
-1. In a separate Archdocs checkout, start the local app with `pnpm dev` when you are ready to run evals.
-2. Create two test orgs in the UI and seed the Cadence sample workspace in each.
-3. In the full org, open Settings > Design docs and enable approvals, sizes and evidence tracking. Keep the standard spec and plan types enabled.
-4. In the lean org, leave the feature defaults. Keep the standard spec and plan types enabled.
-5. Create a PAT in each org. Store them in the environment of the terminal that will run the evals. Never commit PATs or MCP configs containing them.
+1. Start the local API in a separate Archdocs checkout, listening on `http://localhost:4500`. If it is already running, leave it running.
+2. Run `node evals/setup-local-orgs.mjs` from this plugin checkout. Set `ARCHDOCS_EVAL_API` to use a different local API URL.
+3. Run the evals using the commands below. The runner automatically loads `evals/.eval-env`; existing process environment values take precedence.
 
-Set these environment variables in that terminal:
+The setup script creates or reuses `eval-full@archdocs.test` / `Eval Full` and `eval-lean@archdocs.test` / `Eval Lean`, with same-named organizations, and seeds Cadence through the sample workspace API. It enables approvals, sizes and evidence tracking for full and explicitly disables them for lean. Standard spec and plan types keep their defaults. Organization selection is per API request and bound into each PAT; the API has no persistent active-org field.
+
+Every run creates fresh PATs with the owners' MCP permissions and writes them and the generated passwords to the gitignored `evals/.eval-env`. Keep that file for subsequent logins; passwords are reused rather than rotated. Passwords are checkpointed before registration so interrupted runs can resume. Never commit this file or MCP configs containing PATs. Setup reads the sibling `archdocs/apps/api/.env` to check mail configuration before signup, restricts recipients to the non-routable `archdocs.test` domain, and never prints credentials. The current API redirects non-prod mail to Resend sandbox addresses and does not require email verification to log in.
+
+These environment variables can override the generated configuration:
 
 | Variable | Value |
 | --- | --- |
-| `ARCHDOCS_EVAL_ENDPOINT` | Optional MCP endpoint, default `http://localhost:3000/mcp` |
+| `ARCHDOCS_EVAL_ENDPOINT` | Setup writes `http://localhost:4500/mcp` by default; runner fallback without a file is `http://localhost:3000/mcp` |
 | `ARCHDOCS_EVAL_PAT` | PAT for the full org |
 | `ARCHDOCS_EVAL_PAT_LEAN` | PAT for the lean org |
 | `ARCHDOCS_EVAL_APPROVED_DD` | Design doc number such as `DD-0004`, required for `amend-approved-plan` |

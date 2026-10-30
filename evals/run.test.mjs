@@ -1,10 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, runClaude, runScenario, main } from './run.mjs';
+import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, runClaude, runScenario, main, loadEvalEnv } from './run.mjs';
+
+test('loadEvalEnv parses KEY=VALUE, ignores blank and comment lines, and preserves env values', async (t) => {
+  const file = path.join(await temporary(t), '.eval-env');
+  await writeFile(file, '\r\n# comment=ignored\r\n  # indented=ignored\r\nFIRST=one\r\nSECOND=two=three\r\n EXISTING = replaced\r\nEMPTY=replaced\r\nFIRST=duplicate\r\ninvalid line\r\n');
+  const env = { EXISTING: 'original', EMPTY: '' };
+  assert.equal(await loadEvalEnv({ file, env }), env);
+  assert.deepEqual(env, { EXISTING: 'original', EMPTY: '', FIRST: 'one', SECOND: 'two=three' });
+  assert.equal(await loadEvalEnv({ file: file + '.missing', env }), env);
+});
 
 test('buildClaudeArgs includes required flags and plugin only with skills', () => {
   const required = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', 'C:/temp path/mcp.json', '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read'];

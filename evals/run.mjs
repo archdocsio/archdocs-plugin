@@ -6,6 +6,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gradeTranscript } from './grade.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+
+export async function loadEvalEnv({ file = new URL('./.eval-env', import.meta.url), env = process.env } = {}) {
+  let text;
+  try { text = await readFile(file, 'utf8'); }
+  catch (error) { if (error.code === 'ENOENT') return env; throw error; }
+  for (const line of text.split(/\r?\n/)) {
+    const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(line);
+    if (match && !Object.hasOwn(env, match[1])) env[match[1]] = match[2].trim();
+  }
+  return env;
+}
+
 export const usage = `Usage: node evals/run.mjs [--scenario <id>] [--runs 3] [--mode with|without|both]
 
 Options:
@@ -185,6 +197,7 @@ export async function runScenario(scenario, mode, n, resultsDir, {
 
 export async function main(argv = process.argv.slice(2)) {
   if (argv.includes('--help')) { console.log(usage); return; }
+  await loadEvalEnv();
   let mode = 'both';
   let runs = 3;
   let scenarioId;
