@@ -33,6 +33,8 @@ codex plugin remove archdocs@archdocs
 codex plugin marketplace remove archdocs
 ```
 
+Design docs need an Archdocs Team plan or higher. On a Free plan the agent says so once and carries on without one.
+
 ## Commands
 
 In Claude Code:

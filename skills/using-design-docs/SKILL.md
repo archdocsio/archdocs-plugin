@@ -80,6 +80,10 @@ The size decides which variations are required and which need approval, so the u
 
 To write a design doc, use the `writing-a-design-doc` skill. While the work is underway, use `working-under-a-design-doc`. When it's finished or merged, use `closing-out-a-design-doc`.
 
+## If Archdocs says the plan doesn't include design docs
+
+Design docs need a Team plan or higher. On a Free plan, `create_design_doc` refuses with a message saying so. Tell the user once, in a sentence, and carry on with the work. Don't retry, don't propose design docs again in this session, and don't write one as a local file instead. Everything else in Archdocs (diagrams, catalog objects, ADRs) still works.
+
 ## If the Archdocs tools are missing
 
 If no Archdocs tools are available, the MCP server isn't connected or signed in. Ask the user to run `/mcp` and sign in to the `archdocs` server. Don't write the design doc as a markdown file in the repository instead; it won't be linked to the catalog, and nobody will find it later.
