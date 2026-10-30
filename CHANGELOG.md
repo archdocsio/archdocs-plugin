@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (Unreleased)
+## 0.2.0
 
 - Add Codex plugin and marketplace manifests for the skills and hosted Archdocs MCP server.
 - Document Codex installation and `.agents/skills/` as the vendor-neutral skills path.

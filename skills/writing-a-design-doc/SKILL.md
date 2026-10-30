@@ -26,7 +26,7 @@ It also returns `features` and `featureAdvice`. Don't call a tool for a feature 
 
 ## 3. Create
 
-`create_design_doc` needs a title and a size. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened.
+`create_design_doc` needs a title and a size. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened. If the user named a space or an owner, pass `spaceId` or `ownerUserId`; otherwise leave them out and the doc belongs to the person whose token you're using.
 
 ## 4. Write the variations that come before the work
 
@@ -77,9 +77,25 @@ Read the current full text with `get_design_doc` first, then send the whole upda
 
 A variation that is approved, or any variation on a shipped design doc, is frozen. Don't try to write it. Tell the user a person has to open an amendment on that variation in the app and give the reason. Write the change only after they confirm the amendment is open. If the change came up during implementation, it can go in the evidence variation's deviations instead.
 
-## 10. Finish
+## 10. Diagrams and images
 
-Mark each finished variation with `mark_variation_ready`. When approvals are on and the type needs approval for this size, call `request_design_doc_review`. Agents cannot approve. Tell the user who needs to (the type's approvers) and what they're approving.
+A spec usually reads better with a picture of the parts it changes. To show the system as it is, embed the existing canvas doc: find it with `search` or `list_object_usages`, then put `![Delivery pipeline](archdocs://doc/<docId>)` on a line of its own. It renders live and opens the full canvas.
+
+Don't create a new canvas doc to show a proposed design. Canvas docs describe the system as it is now, so a diagram of something not built yet would mislead everyone reading the living docs. Describe the proposed shape in text, or attach an image of it. A person can add a diagram owned by the design doc in the app.
+
+For images (a sketch, a screenshot of a dashboard in the evidence), upload with `attach_design_doc_file` for small files or `request_design_doc_upload` then `complete_design_doc_upload` for large ones. Each returns a markdown snippet; put it in the variation text where the image belongs.
+
+## 11. Mark ready, then review
+
+Call `mark_variation_ready` on each variation as soon as you've written it and the user hasn't asked for more changes. Don't hold it back because questions are open: questions are tracked on their own, and ready means "the author is done", not "approved". Without ready, the doc can't move to approved, and with approvals on it can't ship.
+
+When approvals are on and the type needs approval for this size, call `request_design_doc_review` after marking ready. Agents cannot approve. Tell the user who needs to (the type's approvers) and what they're approving.
+
+## 12. Review comments
+
+Reviewers leave comments on variations. When the user asks you to address review feedback, read the threads with `list_comment_threads` on the design doc, make the change (see section 9), reply on each thread with `reply_to_comment_thread` saying what you changed, and resolve it with `resolve_comment_thread` only when the change fully answers it. Leave a thread open, with a reply, when you disagree or only partly addressed it. An approved variation needs an amendment before any of this (section 9).
+
+## 13. Finish
 
 End by giving the user the design doc number, the list of open questions, and anything that needs a person: approvals, unresolved mentions, an amendment.
 

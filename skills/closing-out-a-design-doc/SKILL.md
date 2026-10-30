@@ -42,6 +42,10 @@ Write the `evidence` variation with `write_design_doc_variation`, following the 
 
 The brief's outcome, deviations and not-done fields must say the same things as the text, in fewer words. If you don't know why something deviated, say so and ask; don't supply a reason.
 
+Screenshots help here (a dashboard after the change, a test run). Attach them as described in `writing-a-design-doc`.
+
+Then call `mark_variation_ready` on the evidence variation. With approvals on, shipping fails until every required variation is ready, the evidence included.
+
 ## 5. Open questions
 
 Call `list_design_doc_questions`. Some questions will have been settled during the work. Answer those with `answer_design_doc_question`, saying who decided, but only for decisions a person made or facts you verified (the same rule as in `writing-a-design-doc`). List the rest for the user.
@@ -54,11 +58,13 @@ Approvals, opening amendments, superseding and abandoning are done by people in 
 
 ## 7. Shipping
 
-Call `mark_design_doc_shipped` only when both are true:
+Shipping means the change is live, not just merged. Call `mark_design_doc_shipped` when the evidence variation is written and marked ready and the user has said the work is live or shipped.
 
-- the evidence variation exists, and
-- the user has said the work is shipped or live. A merged pull request alone doesn't mean shipped, and neither does "done" when it could mean "the code is written".
+When the user only said it's merged or done, don't ship and don't stay quiet either. End by asking: "Is this live? Want me to mark DD-0023 shipped?" Ship on a yes. Without that question nobody marks the doc shipped, and it sits at approved forever.
 
-If questions are still open, the tool needs `acknowledgeOpenQuestions: true`. Pass it only after showing the user the open questions and hearing that they want to ship anyway.
+If the ship call fails, read the reason and act on it:
 
-If you didn't mark it shipped, say what's left: the user's confirmation, an approval, or a proposed object to accept.
+- A variation isn't ready or approved: mark it ready if it's yours to mark, or tell the user who has to approve it.
+- Open questions, with a request to acknowledge them: list the questions for the user, and pass `acknowledgeOpenQuestions: true` only after they agree to ship with them open.
+- Open questions that must be answered first (the organization blocks shipping on them): list them, and answer only the ones a person has decided.
+- An open amendment: tell the user it has to be finished in the app first.
