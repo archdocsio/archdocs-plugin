@@ -1,0 +1,11 @@
+{
+  "id": "during-work-records",
+  "org": "full",
+  "setup": "with-open-question",
+  "prompt": "I opened https://github.com/example/cadence/pull/43 for {{designDocNumber}}. The platform lead picked Twilio.",
+  "expect": {
+    "mustCall": ["link_pull_request", "answer_design_doc_question"],
+    "mustNotCall": ["mark_design_doc_shipped"],
+    "argMustNotMatch": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" }]
+  }
+}

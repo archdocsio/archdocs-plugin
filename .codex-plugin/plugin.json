@@ -1,0 +1,23 @@
+{
+  "name": "archdocs",
+  "version": "0.2.0",
+  "description": "Design docs for coding agents: when to write one, how to write it to your team's standard, and how to close it out with evidence.",
+  "author": { "name": "ArchDocs", "url": "https://archdocs.io" },
+  "homepage": "https://archdocs.io",
+  "repository": "https://github.com/archdocsio/archdocs-plugin",
+  "license": "MIT",
+  "keywords": ["archdocs", "design-docs", "architecture"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Archdocs",
+    "shortDescription": "Design docs for coding agents",
+    "longDescription": "Connects the hosted Archdocs MCP server and adds skills for deciding when a change needs a design doc, writing it to your team's standard, and recording what shipped.",
+    "developerName": "ArchDocs",
+    "category": "Developer Tools",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://archdocs.io",
+    "privacyPolicyURL": "https://archdocs.io/privacy",
+    "defaultPrompt": ["Start a design doc for this change", "Close out the design doc for this work"]
+  }
+}

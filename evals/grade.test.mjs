@@ -46,6 +46,60 @@ test('argMatches checks nested path', () => {
   assert.equal(gradeTranscript(events({ name: 'write_design_doc_variation', input: { brief: { decision: 'Use Valkey' } } }), expect).pass, true);
   assert.equal(gradeTranscript(events({ name: 'write_design_doc_variation', input: { brief: {} } }), expect).pass, false);
 });
+
+const noEvidence = { argMustNotMatch: [{ tool: 'write_design_doc_variation', path: 'variation', pattern: '^evidence$' }] };
+
+test('argMustNotMatch fails on a matching call', () => {
+  const transcript = events(
+    { name: 'write_design_doc_variation', input: { variation: 'plan' } },
+    { name: 'mcp__archdocs-eval__write_design_doc_variation', input: { variation: 'evidence' } },
+  );
+  const grade = gradeTranscript(transcript, noEvidence);
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /write_design_doc_variation.*variation.*evidence/);
+});
+
+test('argMustNotMatch passes when only other values appear', () => {
+  assert.deepEqual(gradeTranscript(events({ name: 'write_design_doc_variation', input: { variation: 'plan' } }), noEvidence), { pass: true, failures: [] });
+});
+
+test('argMustNotMatch checks nested values and ignores missing paths and other tools', () => {
+  const expect = { argMustNotMatch: [{ tool: 'write_design_doc_variation', path: 'brief.decision', pattern: 'Valkey' }] };
+  assert.equal(gradeTranscript(events({ name: 'write_design_doc_variation', input: { brief: { decision: 'Use Valkey' } } }), expect).pass, false);
+  assert.deepEqual(gradeTranscript(events(
+    { name: 'write_design_doc_variation', input: { brief: {} } },
+    { name: 'other_tool', input: { brief: { decision: 'Use Valkey' } } },
+  ), expect), { pass: true, failures: [] });
+  assert.deepEqual(gradeTranscript(events(), expect), { pass: true, failures: [] });
+});
+
+test('finalTextNotMatches fails on a match', () => {
+  const grade = gradeTranscript([{ type: 'result', result: 'I would start a design doc' }], { finalTextNotMatches: 'DESIGN DOC' });
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /Final result text.*DESIGN DOC/);
+});
+
+test('finalTextNotMatches passes otherwise', () => {
+  assert.deepEqual(gradeTranscript([{ type: 'result', result: 'I will add a retry counter metric.' }], { finalTextNotMatches: 'design doc' }), { pass: true, failures: [] });
+});
+
+test('finalTextNotMatches uses the last result event', () => {
+  const expect = { finalTextNotMatches: 'design doc' };
+  assert.equal(gradeTranscript([{ type: 'result', result: 'design doc' }, { type: 'result', result: 'Done' }], expect).pass, true);
+  assert.equal(gradeTranscript([{ type: 'result', result: 'Done' }, { type: 'result', result: 'design doc' }], expect).pass, false);
+});
+
+test('finalTextNotMatches fails clearly when the result event or result string is missing', () => {
+  const expect = { finalTextNotMatches: 'design doc' };
+  const missingEvent = gradeTranscript(events(), expect);
+  assert.equal(missingEvent.pass, false);
+  assert.match(missingEvent.failures[0], /missing result event/);
+  for (const result of [undefined, null, 42]) {
+    const missingText = gradeTranscript([{ type: 'result', result: 'Done' }, { type: 'result', result }], expect);
+    assert.equal(missingText.pass, false);
+    assert.match(missingText.failures[0], /last result event has no result string/);
+  }
+});
 test('order uses the first call across right-side alternatives', () => {
   assert.equal(gradeTranscript(events('c', 'a', 'b'), { order: [['a', 'b|c']] }).pass, false);
   assert.equal(gradeTranscript(events('x', 'c', 'b'), { order: [['a|x', 'b|c']] }).pass, true);

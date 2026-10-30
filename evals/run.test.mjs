@@ -189,10 +189,10 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all ten scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all thirteen scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 10);
+  assert.equal(files.length, 13);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
@@ -200,10 +200,13 @@ test('all ten scenario files have matching ids and use known tools and valid pat
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
     assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'approved-plan', 'plan-file'].includes(scenario.setup ?? 'none'));
-    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.order ?? []).flat(), ...(scenario.expect.argMatches ?? []).map((item) => item.tool)]) {
+    const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? [])];
+    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.order ?? []).flat(), ...argExpectations.map((item) => item.tool)]) {
       for (const alternative of tool.split('|')) assert.ok(tools.has(alternative), `${scenario.id}: ${alternative}`);
     }
-    for (const { pattern } of scenario.expect.argMatches ?? []) assert.doesNotThrow(() => new RegExp(pattern));
-    if (scenario.expect.finalTextMatches !== undefined) assert.doesNotThrow(() => new RegExp(scenario.expect.finalTextMatches, 'i'));
+    for (const { pattern } of argExpectations) assert.doesNotThrow(() => new RegExp(pattern));
+    for (const pattern of [scenario.expect.finalTextMatches, scenario.expect.finalTextNotMatches]) {
+      if (pattern !== undefined) assert.doesNotThrow(() => new RegExp(pattern, 'i'));
+    }
   }
 });

@@ -1,0 +1,8 @@
+{
+  "id": "implicit-trigger-small-change",
+  "prompt": "Add a retry counter metric to the Delivery Worker.",
+  "expect": {
+    "mustNotCall": ["create_design_doc"],
+    "finalTextNotMatches": "design doc"
+  }
+}

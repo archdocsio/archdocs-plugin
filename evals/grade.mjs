@@ -25,12 +25,28 @@ export function gradeTranscript(events, expect) {
       return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
     })) failures.push(`No ${tool} input at ${path} matches /${pattern}/`);
   }
+  for (const { tool, path, pattern } of expect.argMustNotMatch ?? []) {
+    const regex = new RegExp(pattern);
+    if (calls.some((call) => {
+      if (call.name !== tool) return false;
+      const value = path.split('.').reduce((value, key) => value?.[key], call.input);
+      return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
+    })) failures.push(`Forbidden ${tool} input at ${path} matches /${pattern}/`);
+  }
   if (expect.finalTextMatches !== undefined) {
     const finalResult = events.findLast((event) => event.type === 'result');
     if (!finalResult) failures.push('finalTextMatches: missing result event');
     else if (typeof finalResult.result !== 'string') failures.push('finalTextMatches: last result event has no result string');
     else if (!new RegExp(expect.finalTextMatches, 'i').test(finalResult.result)) {
       failures.push(`Final result text does not match /${expect.finalTextMatches}/i`);
+    }
+  }
+  if (expect.finalTextNotMatches !== undefined) {
+    const finalResult = events.findLast((event) => event.type === 'result');
+    if (!finalResult) failures.push('finalTextNotMatches: missing result event');
+    else if (typeof finalResult.result !== 'string') failures.push('finalTextNotMatches: last result event has no result string');
+    else if (new RegExp(expect.finalTextNotMatches, 'i').test(finalResult.result)) {
+      failures.push(`Final result text matches forbidden /${expect.finalTextNotMatches}/i`);
     }
   }
   return { pass: failures.length === 0, failures };

@@ -1,0 +1,8 @@
+{
+  "id": "implicit-trigger-proposes",
+  "prompt": "Implement SMS delivery through Twilio in the Sequencer and the Delivery Worker.",
+  "expect": {
+    "mustNotCall": ["create_design_doc"],
+    "finalTextMatches": "design doc"
+  }
+}
