@@ -83,6 +83,8 @@ Mark each finished variation with `mark_variation_ready`. When approvals are on 
 
 End by giving the user the design doc number, the list of open questions, and anything that needs a person: approvals, unresolved mentions, an amendment.
 
+Once the work starts, use `working-under-a-design-doc` to record decisions, pull requests and deviations as they happen.
+
 ## Example
 
 The user says: "Write up adding SMS as a delivery channel. It touches the Sequencer and the Delivery Worker. We haven't picked Twilio or MessageBird."

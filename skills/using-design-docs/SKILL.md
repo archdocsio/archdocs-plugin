@@ -1,6 +1,6 @@
 ---
 name: using-design-docs
-description: Use when planning or discussing a code or architecture change and deciding whether it needs an Archdocs design doc, an architecture decision record, an update to an existing diagram, or nothing, or when the user mentions design docs, specs, RFCs or ADRs in a project connected to Archdocs.
+description: Use when about to plan or start implementing a code change in a project connected to Archdocs, when planning or discussing an architecture change and deciding whether it needs an Archdocs design doc, an architecture decision record, an update to an existing diagram, or nothing, or when the user mentions design docs, specs, RFCs or ADRs.
 ---
 
 # Using design docs
@@ -26,20 +26,34 @@ Ask which question the user needs answered later:
 
 ## When a change needs a design doc
 
-Write one when any of these is true:
+Check this before you start planning or implementing a change, whether or not anyone has mentioned design docs. A change that needed one is much harder to document after the code is written.
 
-- The change touches two or more catalog objects, or changes an interface, contract, schema or data flow between them.
-- Someone other than the author has to review or approve the approach before work starts.
-- An agent will carry out the work across several steps or pull requests, so the plan is worth keeping.
+The rule comes from the server. Call `list_design_doc_types` and read its `guidance`: `writeWhen` lists when to write one, `skipWhen` lists when not to, and `proposeFirst` says how to bring it up. Follow that over anything in this skill, because Archdocs updates it as it learns what works.
+
+If the response has no `guidance` (an older or self-hosted server), use this fallback copy. Write one when any of these is true:
+
+- The change crosses a boundary: it touches two or more catalog objects, or changes an interface, schema or data flow between them.
+- Someone else has to sign off on the approach before work starts.
+- The work will take more than one pull request or more than one agent session.
 - It adds an external dependency or a data store, or starts handling personal data the system didn't handle before.
 
-Skip it for a fix or refactor inside one component that changes no interface, for dependency bumps, and for copy or config changes. A design doc for a typo fix is noise that buries the docs people need.
+Skip it for a change inside one component that changes no interface, for dependency bumps, and for copy or config changes. A design doc for a typo fix is noise that buries the docs people need.
+
+## Propose, don't create
+
+When the rule matches and the user didn't ask for a design doc, propose one in a single sentence that names what matched, then wait:
+
+> This touches the Sequencer and the Delivery Worker and adds Twilio as a dependency. Want me to start a design doc before I build it?
+
+Create it only on a yes. If they say no, carry on with the work and don't ask again for the same change. When the rule doesn't match, say nothing about design docs at all.
+
+When the user asked for a design doc and the rule says the change doesn't need one, say so in one sentence and ask whether to continue. They may have a reason you can't see.
+
+## Other answers
 
 When the system has already changed and a diagram is now wrong, that's an update to the living doc, not a design doc. Find the doc with `search` or `list_object_usages` and update it.
 
 When the user is recording a decision and nothing is being built, write an ADR with `create_adr`. When a design doc's spec settles something that will outlive the change, write the ADR as well and mention it from the spec.
-
-If the call is unclear, ask one short question before creating anything. An unwanted document is harder to undo than a question.
 
 ## Size
 
@@ -56,6 +70,7 @@ The size decides which variations are required and which need approval, so the u
 | Request | Choice |
 | --- | --- |
 | "Rename the retry counter in the Delivery Worker." | Nothing |
+| "Implement webhook retries in the Delivery Worker and expose their status in the public API." | Propose a design doc (two objects and an interface change) |
 | "We're moving session storage from Redis to Postgres." | Design doc (data store change touching several services) |
 | "From now on every public endpoint goes through the API gateway." | ADR |
 | "We added a dead-letter queue last week; the delivery diagram doesn't show it." | Update the canvas doc |
@@ -63,7 +78,7 @@ The size decides which variations are required and which need approval, so the u
 
 ## Next step
 
-To write a design doc, use the `writing-a-design-doc` skill. When the work is finished or merged, use `closing-out-a-design-doc`.
+To write a design doc, use the `writing-a-design-doc` skill. While the work is underway, use `working-under-a-design-doc`. When it's finished or merged, use `closing-out-a-design-doc`.
 
 ## If the Archdocs tools are missing
 
