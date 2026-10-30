@@ -28,8 +28,11 @@ Options:
 
 Environment:
   ARCHDOCS_EVAL_ENDPOINT     MCP endpoint (default: http://localhost:3000/mcp)
+  ARCHDOCS_EVAL_API          REST API base (default: endpoint without trailing /mcp)
   ARCHDOCS_EVAL_PAT          PAT for the full org
   ARCHDOCS_EVAL_PAT_LEAN     PAT for the lean org
+  ARCHDOCS_EVAL_PASSWORD_FULL / ARCHDOCS_EVAL_PASSWORD_LEAN  Stored login passwords
+  ARCHDOCS_EVAL_ORG_ID / ARCHDOCS_EVAL_ORG_ID_LEAN           Orgs to reset before each run
   ARCHDOCS_EVAL_APPROVED_DD  Manually approved plan, for example DD-0004
 `;
 
@@ -71,6 +74,85 @@ export function parseMcpResponse(text) {
 function redact(text, secrets) {
   for (const secret of secrets.filter(Boolean)) text = text.replaceAll(secret, '[REDACTED]');
   return text;
+}
+
+export async function resetEvalOrg({ api, email, password, orgId, fetchImpl = fetch }) {
+  let token;
+  const base = api.replace(/\/$/, '');
+  async function request(route, { method = 'GET', body, scoped = true } = {}) {
+    // Do not include response bodies or transport errors: either can echo credentials.
+    const label = `${method} ${route.split('?')[0].replace(/\/(design-docs|adrs)\/.+$/, '/$1/{id}')}`;
+    let response;
+    try {
+      response = await fetchImpl(`${base}${route}`, {
+        method, redirect: 'error', signal: AbortSignal.timeout(120000),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(scoped ? { Authorization: `Bearer ${token}`, 'x-organization-id': orgId } : {}),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      });
+    } catch { throw new Error(`${label} failed to reach the API.`); }
+    if (!response.ok) throw new Error(`${label} failed (HTTP ${response.status}).`);
+    try { return await response.json(); }
+    catch { throw new Error(`${label} returned invalid JSON.`); }
+  }
+  try {
+    if (!email || !password || !orgId) throw new Error('Login email, stored password and organization id are required. Run evals/setup-local-orgs.mjs.');
+    const auth = await request('/auth/login', { method: 'POST', scoped: false, body: { email, password } });
+    if (typeof auth?.token !== 'string' || !auth.token) throw new Error('POST /auth/login returned no JWT.');
+    token = auth.token;
+    const ids = [];
+    const cursors = new Set();
+    let cursor;
+    do {
+      // No status filter: includes shipped, abandoned, superseded and draft docs.
+      const page = await request(`/design-docs${cursor === undefined ? '' : `?cursor=${cursor}`}`);
+      if (!Array.isArray(page?.designDocs) || !page.designDocs.every((doc) => typeof doc?.id === 'string' && doc.id)) {
+        throw new Error('GET /design-docs returned an invalid design doc list.');
+      }
+      ids.push(...page.designDocs.map((doc) => doc.id));
+      cursor = page.nextCursor;
+      if (cursor !== null && (!Number.isSafeInteger(cursor) || cursor <= 0 || cursors.has(cursor))) {
+        throw new Error('GET /design-docs returned an invalid or repeated pagination cursor.');
+      }
+      cursors.add(cursor);
+    } while (cursor !== null);
+    // Finish paging before deleting so mutations cannot shift the result set.
+    let designDocsDeleted = 0;
+    for (const id of new Set(ids)) {
+      await request(`/design-docs/${encodeURIComponent(id)}`, { method: 'DELETE', body: {} });
+      designDocsDeleted++;
+    }
+    // The ADR contract exposes GET /adrs and DELETE /adrs/{id}, with no pagination.
+    const page = await request('/adrs');
+    if (!Array.isArray(page?.adrs) || !page.adrs.every((adr) => typeof adr?.id === 'string' && adr.id)) {
+      throw new Error('GET /adrs returned an invalid ADR list.');
+    }
+    let adrsDeleted = 0;
+    for (const id of new Set(page.adrs.map((adr) => adr.id))) {
+      await request(`/adrs/${encodeURIComponent(id)}`, { method: 'DELETE', body: {} });
+      adrsDeleted++;
+    }
+    return { designDocsDeleted, adrsDeleted };
+  } catch (error) {
+    throw new Error(redact(`Eval org reset failed: ${error.message}`, [password, token]));
+  }
+}
+
+function resetOptions(scenario, env) {
+  const lean = scenario.org === 'lean';
+  const passwordKey = lean ? 'ARCHDOCS_EVAL_PASSWORD_LEAN' : 'ARCHDOCS_EVAL_PASSWORD_FULL';
+  const orgKey = lean ? 'ARCHDOCS_EVAL_ORG_ID_LEAN' : 'ARCHDOCS_EVAL_ORG_ID';
+  for (const key of [passwordKey, orgKey]) {
+    if (!env[key]?.trim()) throw new Error(`Missing required environment variable ${key} for ${scenario.id}. Run evals/setup-local-orgs.mjs.`);
+  }
+  const endpoint = env.ARCHDOCS_EVAL_ENDPOINT || 'http://localhost:3000/mcp';
+  return {
+    api: env.ARCHDOCS_EVAL_API || endpoint.replace(/\/mcp\/?$/, ''),
+    email: lean ? 'eval-lean@archdocs.test' : 'eval-full@archdocs.test',
+    password: env[passwordKey], orgId: env[orgKey],
+  };
 }
 
 export async function mcpCall(endpoint, pat, name, args) {
@@ -159,15 +241,20 @@ export function runClaude(args, prompt, { cwd, secrets = [], spawnProcess = spaw
 }
 
 export async function runScenario(scenario, mode, n, resultsDir, {
-  env = process.env, tempRoot = os.tmpdir(), execute = runClaude, call = mcpCall,
+  env = process.env, tempRoot = os.tmpdir(), execute = runClaude, call = mcpCall, fetchImpl = fetch,
 } = {}) {
   const patName = scenario.org === 'lean' ? 'ARCHDOCS_EVAL_PAT_LEAN' : 'ARCHDOCS_EVAL_PAT';
   const pat = env[patName];
   if (!pat?.trim()) throw new Error(`Missing required environment variable ${patName} for ${scenario.id}`);
   const endpoint = env.ARCHDOCS_EVAL_ENDPOINT || 'http://localhost:3000/mcp';
   const tempDir = await mkdtemp(path.join(tempRoot, 'archdocs-eval-'));
-  const secrets = [env.ARCHDOCS_EVAL_PAT, env.ARCHDOCS_EVAL_PAT_LEAN];
+  const secrets = [env.ARCHDOCS_EVAL_PAT, env.ARCHDOCS_EVAL_PAT_LEAN,
+    env.ARCHDOCS_EVAL_PASSWORD_FULL, env.ARCHDOCS_EVAL_PASSWORD_LEAN];
   try {
+    await resetEvalOrg({ ...resetOptions(scenario, env), fetchImpl });
+    if (scenario.setup === 'approved-plan') {
+      throw new Error('approved-plan setup requires human approval of a fresh fixture after the per-run reset. Pre-existing approved plans are deleted by reset; this scenario needs a manual setup step before Claude can run.');
+    }
     const vars = await setupScenario(scenario, { endpoint, pat, tempDir, env, call });
     const mcpConfigPath = path.join(tempDir, 'mcp.eval.json');
     await writeFile(mcpConfigPath, JSON.stringify({ mcpServers: {
@@ -222,6 +309,7 @@ export async function main(argv = process.argv.slice(2)) {
   for (const scenario of scenarios) {
     const key = scenario.org === 'lean' ? 'ARCHDOCS_EVAL_PAT_LEAN' : 'ARCHDOCS_EVAL_PAT';
     if (!process.env[key]?.trim()) throw new Error(`Missing required environment variable ${key} for ${scenario.id}`);
+    resetOptions(scenario, process.env);
     if (scenario.setup === 'approved-plan') await setupScenario(scenario, { env: process.env });
   }
   const resultsDir = path.join(root, 'evals', 'results', new Date().toISOString().replaceAll(':', '-') + '-' + process.pid);
@@ -232,7 +320,9 @@ export async function main(argv = process.argv.slice(2)) {
   for (const scenario of scenarios) for (const selectedMode of modes) {
     let passes = 0;
     for (let n = 1; n <= runs; n++) {
-      const grade = await runScenario(scenario, selectedMode, n, resultsDir);
+      let grade;
+      try { grade = await runScenario(scenario, selectedMode, n, resultsDir); }
+      catch (error) { grade = { pass: false, failures: [error.message] }; }
       if (grade.pass) passes++;
       else { failed = true; console.log(`${scenario.id}.${selectedMode}.${n}: ${grade.failures.join('; ')}`); }
     }
@@ -243,7 +333,8 @@ export async function main(argv = process.argv.slice(2)) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main().catch((error) => {
-    console.error(redact(error.message, [process.env.ARCHDOCS_EVAL_PAT, process.env.ARCHDOCS_EVAL_PAT_LEAN]));
+    console.error(redact(error.message, [process.env.ARCHDOCS_EVAL_PAT, process.env.ARCHDOCS_EVAL_PAT_LEAN,
+      process.env.ARCHDOCS_EVAL_PASSWORD_FULL, process.env.ARCHDOCS_EVAL_PASSWORD_LEAN]));
     process.exitCode = 1;
   });
 }

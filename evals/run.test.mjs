@@ -4,7 +4,89 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, runClaude, runScenario, main, loadEvalEnv } from './run.mjs';
+import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, resetEvalOrg, runClaude, runScenario, main, loadEvalEnv } from './run.mjs';
+
+const runEnv = {
+  ARCHDOCS_EVAL_PAT: 'test-credential',
+  ARCHDOCS_EVAL_PASSWORD_FULL: 'full-password', ARCHDOCS_EVAL_ORG_ID: 'full-org',
+  ARCHDOCS_EVAL_PASSWORD_LEAN: 'lean-password', ARCHDOCS_EVAL_ORG_ID_LEAN: 'lean-org',
+};
+const emptyOrgFetch = async (url) => Response.json(url.endsWith('/auth/login') ? { token: 'jwt' }
+  : url.endsWith('/adrs') ? { adrs: [] } : { designDocs: [], nextCursor: null });
+
+test('resetEvalOrg logs in, pages all design doc statuses, and deletes every doc and ADR with org headers', async () => {
+  const calls = [];
+  const statuses = ['DRAFT', 'IN_PROGRESS', 'SHIPPED', 'ABANDONED', 'SUPERSEDED'];
+  const fetchImpl = async (url, options) => {
+    const route = new URL(url).pathname + new URL(url).search;
+    calls.push([options.method, route]);
+    assert.equal(options.redirect, 'error');
+    if (route === '/auth/login') {
+      assert.equal(options.method, 'POST');
+      assert.deepEqual(JSON.parse(options.body), { email: 'eval@example.test', password: 'secret-password' });
+      assert.equal(options.headers.Authorization, undefined);
+      return Response.json({ token: 'secret-jwt' });
+    }
+    assert.equal(options.headers.Authorization, 'Bearer secret-jwt');
+    assert.equal(options.headers['x-organization-id'], 'eval-org');
+    if (options.method === 'DELETE') {
+      assert.deepEqual(JSON.parse(options.body), {});
+      return Response.json({ id: 'deleted' });
+    }
+    if (route === '/adrs') return Response.json({ adrs: [{ id: 'adr-one' }, { id: 'adr-two' }] });
+    const secondPage = route === '/design-docs?cursor=25';
+    assert.ok(secondPage || route === '/design-docs');
+    return Response.json({
+      designDocs: statuses.slice(secondPage ? 3 : 0, secondPage ? 5 : 3).map((status) => ({ id: `doc-${status}`, status })),
+      nextCursor: secondPage ? null : 25,
+    });
+  };
+  assert.deepEqual(await resetEvalOrg({ api: 'http://localhost:4500/', email: 'eval@example.test', password: 'secret-password', orgId: 'eval-org', fetchImpl }),
+    { designDocsDeleted: 5, adrsDeleted: 2 });
+  assert.deepEqual(calls, [
+    ['POST', '/auth/login'], ['GET', '/design-docs'], ['GET', '/design-docs?cursor=25'],
+    ...statuses.map((status) => ['DELETE', `/design-docs/doc-${status}`]),
+    ['GET', '/adrs'], ['DELETE', '/adrs/adr-one'], ['DELETE', '/adrs/adr-two'],
+  ]);
+});
+
+test('resetEvalOrg reports HTTP, transport and JSON failures without secrets or response bodies', async () => {
+  const options = { api: 'http://localhost:4500', email: 'eval@example.test', password: 'secret-password', orgId: 'eval-org' };
+  for (const stage of ['/auth/login', '/design-docs', '/design-docs/doc', '/adrs', '/adrs/adr']) {
+    for (const failure of ['http', 'transport', 'json']) {
+      const fetchImpl = async (url) => {
+        const route = new URL(url).pathname;
+        if (route === stage) {
+          if (failure === 'transport') throw new Error('secret-password secret-jwt transport details');
+          return new Response('secret-password secret-jwt response details', { status: failure === 'http' ? 403 : 200 });
+        }
+        return Response.json(route === '/auth/login' ? { token: 'secret-jwt' }
+          : route === '/design-docs' ? { designDocs: [{ id: 'doc' }], nextCursor: null }
+          : route === '/adrs' ? { adrs: [{ id: 'adr' }] } : { id: 'deleted' });
+      };
+      await assert.rejects(resetEvalOrg({ ...options, fetchImpl }), (error) => {
+        assert.match(error.message, /^Eval org reset failed: (POST|GET|DELETE) \//);
+        assert.doesNotMatch(error.message, /secret-password|secret-jwt|details/);
+        if (failure === 'http') assert.match(error.message, /HTTP 403/);
+        return true;
+      });
+    }
+  }
+});
+
+test('resetEvalOrg rejects missing JWTs, invalid lists and invalid or looping cursors', async () => {
+  for (const reply of [null, {}, { designDocs: 'invalid', nextCursor: null },
+    { designDocs: [{}], nextCursor: null }, { designDocs: [], nextCursor: 0 },
+    { designDocs: [], nextCursor: 10 }, { designDocs: [], nextCursor: 'secret-password' }]) {
+    await assert.rejects(resetEvalOrg({ api: 'http://localhost:4500', email: 'eval@example.test', password: 'secret-password', orgId: 'eval-org',
+      fetchImpl: async (url) => Response.json(url.endsWith('/auth/login') && reply !== null ? { token: 'jwt' } : reply),
+    }), /Eval org reset failed:/);
+  }
+  await assert.rejects(resetEvalOrg({ api: 'http://localhost:4500', email: 'eval@example.test', password: 'secret-password', orgId: 'eval-org',
+    fetchImpl: async (url) => Response.json(url.endsWith('/auth/login') ? { token: 'jwt' }
+      : url.endsWith('/adrs') ? { adrs: [{}] } : { designDocs: [], nextCursor: null }),
+  }), /invalid ADR list/);
+});
 
 test('loadEvalEnv parses KEY=VALUE, ignores blank and comment lines, and preserves env values', async (t) => {
   const file = path.join(await temporary(t), '.eval-env');
@@ -153,11 +235,76 @@ test('runClaude does not retry other spawn failures or non-Windows ENOENT', asyn
 test('runScenario fails fast for missing org PAT', async () => {
   await assert.rejects(runScenario({ id: 'lean', org: 'lean' }, 'without', 1, '.', { env: {} }), /ARCHDOCS_EVAL_PAT_LEAN/);
 });
+
+test('runScenario resets the selected org before setup on every run, with API override or endpoint fallback', async (t) => {
+  const dir = await temporary(t);
+  for (const org of ['full', 'lean']) {
+    const order = [];
+    for (let n = 1; n <= 2; n++) {
+      const env = { ...runEnv, ARCHDOCS_EVAL_PAT_LEAN: 'lean-pat', ARCHDOCS_EVAL_ENDPOINT: 'http://localhost:4500/mcp',
+        ...(org === 'lean' ? { ARCHDOCS_EVAL_API: 'http://localhost:4600' } : {}) };
+      await runScenario({ id: org, org, setup: 'design-doc-with-spec-and-plan', prompt: '{{designDocNumber}}', expect: {} }, 'without', n, dir, {
+        env, tempRoot: dir,
+        fetchImpl: async (url, options) => {
+          assert.equal(new URL(url).origin, org === 'lean' ? 'http://localhost:4600' : 'http://localhost:4500');
+          if (url.endsWith('/auth/login')) {
+            order.push('login');
+            assert.deepEqual(JSON.parse(options.body), { email: `eval-${org}@archdocs.test`, password: `${org}-password` });
+          } else {
+            assert.equal(options.headers['x-organization-id'], `${org}-org`);
+            order.push(url.endsWith('/adrs') ? 'adrs' : 'design-docs');
+          }
+          return emptyOrgFetch(url);
+        },
+        call: async (endpoint, pat, name) => {
+          if (name === 'list_design_doc_types') {
+            order.push('setup');
+            return { types: ['spec', 'plan'].map((key) => ({ key, enabled: true, briefFields: [] })) };
+          }
+          if (name === 'create_design_doc') return { id: 'fixture', displayNumber: 'DD-0001' };
+        },
+        execute: async () => { order.push('execute'); return { code: 0, stdout: '{"type":"result"}', stderr: '' }; },
+      });
+    }
+    assert.deepEqual(order, Array(2).fill(['login', 'design-docs', 'adrs', 'setup', 'execute']).flat());
+  }
+});
+
+test('runScenario stops before setup and execution on reset failure and cleans up', async (t) => {
+  const dir = await temporary(t);
+  await assert.rejects(runScenario({ id: 'fixture', setup: 'design-doc-with-spec-and-plan' }, 'without', 1, dir, {
+    env: runEnv, tempRoot: dir,
+    fetchImpl: async () => { throw new Error('full-password test-credential'); },
+    call: async () => assert.fail('setup must not run'), execute: async () => assert.fail('Claude must not run'),
+  }), /^Error: Eval org reset failed: POST \/auth\/login failed to reach the API\.$/);
+  assert.deepEqual(await readdir(dir), []);
+});
+
+test('runScenario requires reset credentials and redacts both passwords from later errors', async (t) => {
+  const dir = await temporary(t);
+  for (const key of ['ARCHDOCS_EVAL_PASSWORD_FULL', 'ARCHDOCS_EVAL_ORG_ID']) {
+    await assert.rejects(runScenario({ id: 'fixture' }, 'without', 1, dir, {
+      env: { ...runEnv, [key]: '' }, tempRoot: dir, fetchImpl: async () => assert.fail('must validate before fetching'),
+    }), new RegExp(key));
+  }
+  await assert.rejects(runScenario({ id: 'fixture', prompt: '', expect: {} }, 'without', 1, dir, {
+    env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch,
+    execute: async () => { throw new Error('full-password lean-password test-credential'); },
+  }), { message: '[REDACTED] [REDACTED] [REDACTED]' });
+});
+
+test('runScenario fails the manual approved-plan fixture clearly after reset without starting Claude', async (t) => {
+  const dir = await temporary(t);
+  await assert.rejects(runScenario({ id: 'fixture', setup: 'approved-plan' }, 'without', 1, dir, {
+    env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch,
+    execute: async () => assert.fail('Claude must not run with a deleted fixture'),
+  }), /human approval of a fresh fixture after the per-run reset/);
+});
 test('runScenario writes per-run config, grades JSONL, redacts PAT and cleans up', async (t) => {
   const dir = await temporary(t);
   let configPath;
   const grade = await runScenario({ id: 'fixture', prompt: 'Prompt', expect: { mustCall: ['create_adr'] } }, 'without', 1, dir, {
-    env: { ARCHDOCS_EVAL_PAT: 'test-credential' }, tempRoot: dir,
+    env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch,
     execute: async (args, prompt, { cwd }) => {
       assert.equal(prompt, 'Prompt');
       configPath = args[args.indexOf('--mcp-config') + 1];
@@ -174,7 +321,7 @@ test('runScenario cleans up after setup or execution failure', async (t) => {
   const dir = await temporary(t);
   for (const setup of ['none', 'design-doc-with-spec-and-plan']) {
     await assert.rejects(runScenario({ id: 'fixture', setup, prompt: '', expect: {} }, 'without', 1, dir, {
-      env: { ARCHDOCS_EVAL_PAT: 'test-credential' }, tempRoot: dir,
+      env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch,
       call: async () => { throw new Error('setup test-credential'); },
       execute: async () => { throw new Error('execute test-credential'); },
     }), (error) => error.message.includes('[REDACTED]') && !error.message.includes('test-credential'));
@@ -190,7 +337,7 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
     { code: 1, stdout: '{"type":"result"}', stderr: 'failure' },
   ]) {
     const grade = await runScenario({ id: 'fixture', prompt: '', expect: { mustNotCall: ['create_design_doc'] } }, 'without', 1, dir, {
-      env: { ARCHDOCS_EVAL_PAT: 'test-credential' }, tempRoot: dir, execute: async () => result,
+      env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch, execute: async () => result,
     });
     assert.equal(grade.pass, false);
   }

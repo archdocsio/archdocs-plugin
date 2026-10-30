@@ -28,6 +28,8 @@ export async function main() {
     const passwordKey = `ARCHDOCS_EVAL_PASSWORD_${account.key}`;
     values[passwordKey] = stored[passwordKey] || `Aa1!${randomBytes(32).toString('base64url')}`;
     if (stored[account.patKey]) values[account.patKey] = stored[account.patKey];
+    const orgKey = account.key === 'LEAN' ? 'ARCHDOCS_EVAL_ORG_ID_LEAN' : 'ARCHDOCS_EVAL_ORG_ID';
+    if (stored[orgKey]) values[orgKey] = stored[orgKey];
   }
   const save = () => writeFile(outputFile, Object.entries(values).map(([key, value]) => `${key}=${value}\n`).join(''), { mode: 0o600 });
 
@@ -86,6 +88,8 @@ export async function main() {
     const matches = auth.organizations.filter((org) => org.name === account.name);
     if (matches.length !== 1) throw new Error(`${account.label}: expected exactly one organization named ${account.name}.`);
     const orgId = matches[0].id;
+    values[account.key === 'LEAN' ? 'ARCHDOCS_EVAL_ORG_ID_LEAN' : 'ARCHDOCS_EVAL_ORG_ID'] = orgId;
+    await save();
     // The API has no persisted active-org field. Select it on every request;
     // POST /pat binds this same organization into the MCP principal.
     const scoped = (route, options = {}) => request(route, { ...options, token: auth.token, orgId });
