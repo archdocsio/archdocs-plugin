@@ -1,0 +1,11 @@
+{
+  "id": "lean-org-close-out",
+  "org": "lean",
+  "setup": "design-doc-with-spec-and-plan",
+  "prompt": "PR https://github.com/example/cadence/pull/42 merged, {{designDocNumber}} is done.",
+  "expect": {
+    "mustCall": ["write_design_doc_variation"],
+    "argMatches": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "evidence" }],
+    "mustNotCall": ["link_pull_request", "set_planned_changes", "mark_design_doc_shipped"]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "archdocs",
+  "description": "Archdocs plugins for Claude Code.",
+  "owner": { "name": "ArchDocs", "url": "https://archdocs.io" },
+  "plugins": [
+    {
+      "name": "archdocs",
+      "source": "./",
+      "description": "Design docs for coding agents: when to write one, how to write it to your team's standard, and how to close it out with evidence.",
+      "version": "0.1.0"
+    }
+  ]
+}

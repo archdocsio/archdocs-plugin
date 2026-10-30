@@ -1,0 +1,14 @@
+{
+  "id": "full-org-close-out",
+  "org": "full",
+  "setup": "with-open-question",
+  "prompt": "PR https://github.com/example/cadence/pull/42 merged and it's live in prod. Close out {{designDocNumber}}.",
+  "expect": {
+    "mustCall": ["link_pull_request", "write_design_doc_variation"],
+    "order": [
+      ["write_design_doc_variation", "mark_design_doc_shipped"],
+      ["list_design_doc_questions|get_design_doc", "mark_design_doc_shipped"]
+    ],
+    "mustNotCall": ["answer_design_doc_question"]
+  }
+}

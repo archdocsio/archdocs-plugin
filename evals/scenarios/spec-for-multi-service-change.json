@@ -1,0 +1,14 @@
+{
+  "id": "spec-for-multi-service-change",
+  "prompt": "Write up a design for adding SMS as a delivery channel. It touches the Sequencer, Delivery Worker and a new Twilio integration. We haven't picked between Twilio and MessageBird.",
+  "expect": {
+    "mustCall": ["list_design_doc_types", "create_design_doc", "write_design_doc_variation", "add_design_doc_question"],
+    "mustNotCall": ["answer_design_doc_question"],
+    "order": [
+      ["list_design_doc_types", "write_design_doc_variation"],
+      ["list_design_docs|search", "create_design_doc"],
+      ["list_objects|search", "write_design_doc_variation"]
+    ],
+    "argMatches": [{ "tool": "add_design_doc_question", "path": "text", "pattern": "Twilio|MessageBird" }]
+  }
+}

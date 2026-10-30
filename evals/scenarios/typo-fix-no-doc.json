@@ -1,0 +1,5 @@
+{
+  "id": "typo-fix-no-doc",
+  "prompt": "Fix the typo in the Delivery Worker retry log message, 'recieved' should be 'received'.",
+  "expect": { "mustNotCall": ["create_design_doc", "create_adr"] }
+}

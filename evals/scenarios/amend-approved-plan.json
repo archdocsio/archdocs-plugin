@@ -1,0 +1,8 @@
+{
+  "id": "amend-approved-plan",
+  "setup": "approved-plan",
+  "prompt": "Update the plan on {{designDocNumber}}: we'll batch writes to the Event Store instead of streaming.",
+  "expect": {
+    "finalTextMatches": "amendment"
+  }
+}

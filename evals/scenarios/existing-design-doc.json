@@ -1,0 +1,6 @@
+{
+  "id": "existing-design-doc",
+  "setup": "design-doc-with-spec-and-plan",
+  "prompt": "Start a design doc for SMS delivery.",
+  "expect": { "mustCall": ["list_design_docs"], "mustNotCall": ["create_design_doc"] }
+}

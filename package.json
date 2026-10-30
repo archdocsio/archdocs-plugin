@@ -1,0 +1,13 @@
+{
+  "name": "archdocs-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test",
+    "validate": "node scripts/validate.mjs",
+    "evals": "node evals/run.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
