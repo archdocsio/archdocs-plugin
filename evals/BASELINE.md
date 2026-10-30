@@ -55,3 +55,28 @@ Transcripts are saved as `evals/results/<timestamp>/<id>.<mode>.<n>.jsonl`, with
 | lean-org-close-out | | |
 | full-org-close-out | | |
 | answer-relayed-decision | | |
+
+## Results for v0.3.0 (2026-10-30)
+
+Local API, Cadence eval orgs on a Team plan grant, `--setting-sources project` (no user plugins or hooks), 3 runs per mode. Scenarios marked "round 2" were rerun after the ready-marking and ask-before-shipping revision.
+
+| Scenario | Without plugin | With plugin |
+| --- | --- | --- |
+| answer-relayed-decision | 3/3 | 3/3 |
+| decision-only-adr | 3/3 | 3/3 |
+| during-work-records | 3/3 | 3/3 |
+| existing-design-doc | 3/3 | 3/3 |
+| implicit-trigger-proposes | 3/3 | 3/3 |
+| import-plan-file | 3/3 | 3/3 |
+| living-what-update | 3/3 | 3/3 |
+| typo-fix-no-doc | 3/3 | 3/3 |
+| spec-for-multi-service-change (round 2) | 0/3 | 3/3 |
+| full-org-close-out (round 2) | 0/3 | 3/3 |
+| lean-org-close-out (round 2) | 0/3 | 3/3 |
+| live-close-out-ships (round 2) | 0/3 | 3/3 |
+| implicit-trigger-small-change (round 2) | 3/3 | 2/3 |
+| amend-approved-plan | not run | not run |
+
+The baseline is high on routing scenarios because the server now sends the rules as MCP instructions to every client. The plugin's gains are in marking variations ready and the close-out and shipping flow.
+
+`implicit-trigger-small-change` with the plugin missed once: the agent correctly skipped the design doc but said "it doesn't need a design doc". `amend-approved-plan` needs a hand-approved plan variation, which the per-run reset deletes; it was not run.
