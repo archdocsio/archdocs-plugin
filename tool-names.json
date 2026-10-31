@@ -28,6 +28,7 @@
     "get_review",
     "get_schema",
     "get_subgraph",
+    "get_task_context",
     "import_plan_file",
     "link_design_doc_mentions",
     "link_pull_request",

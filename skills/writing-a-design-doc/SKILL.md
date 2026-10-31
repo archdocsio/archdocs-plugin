@@ -32,6 +32,8 @@ It also returns `features` and `featureAdvice`. Don't call a tool for a feature 
 
 By default that's `spec`, then `plan`. With sizes on, write each type whose timing is before and which is required for the doc's size. Write each with `write_design_doc_variation`, sending the full markdown and the brief together. The server refuses an agent write without a brief.
 
+When the spec deliberately postpones something, give it a "Deferred" section with one entry per item: what was postponed, why, and the condition under which to reconsider it ("Reconsider if p95 latency stays above 150 ms"). Only record deferrals the user or the existing docs actually made. Future engineers and agents find this section when they ask for context on the same code, so they don't rebuild something that was set aside on purpose, or mistake the gap for an oversight. A deferral is a postponement, not a rule against the approach.
+
 If the user already has a plan file from another tool, don't rewrite it. Use `import_plan_file` with its content, its `source` (`claude-code`, `spec-kit`, `kiro` or `markdown`) and a brief written from it.
 
 ## 5. Never invent
