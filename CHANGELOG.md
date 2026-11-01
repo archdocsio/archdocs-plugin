@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- `using-design-docs` handles a decision the organization wants confirmed: when a tool returns `status: pending_confirmation`, the agent gives the person the `confirmUrl`, says nothing is recorded until they confirm it in Archdocs, and doesn't retry or report the decision as made.
+
 ## 0.8.0
 
 - Hooks keep the Work Log current. After a `git commit` or a returned subagent, and once when a turn ends with commits, test runs or subagent results not yet recorded, the agent is reminded to record them on the design doc. They are silent unless the session has used the Archdocs design-doc tools, defer to the journal's own instructions, never write to Archdocs themselves, and keep only a per-session state file. One bash script serves Claude Code and Codex (`hooks/hooks.json`) and Cursor (`hooks/hooks-cursor.json`); a launcher adapted from obra/superpowers finds bash on Windows. `ARCHDOCS_WORKLOG_HOOKS=off` turns them off.
