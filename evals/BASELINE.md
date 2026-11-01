@@ -1,6 +1,6 @@
 # Eval setup and results
 
-No baseline or with-skills eval has been run. The results cells below are intentionally empty.
+The first table below is the original template and stays empty; results for each revision are recorded in the dated sections at the end.
 
 ## Prepare the local eval orgs
 
@@ -8,7 +8,7 @@ No baseline or with-skills eval has been run. The results cells below are intent
 2. Prerequisite: design docs require a Team plan or higher. After the first `node evals/setup-local-orgs.mjs` run, give both eval orgs an active TEAM PlanGrant. Use the back office if your local user is a platform operator, or insert a PlanGrant row for each org in the local dev database with `plan = TEAM`, `seatCount = 5`, `aiOverage = CAPPED`, `grantedById` set to that org's eval user id, and `grantedByEmail` set to that eval user's email. The first setup run fails at design doc settings with HTTP 403 until the grant exists.
 3. Give the full org a BUSINESS grant instead of TEAM (update its active `PlanGrant` row's `plan`). Review and approvals need Business, so `requiredApprovals` stays 0 on a Team org and the approval-required scenarios (`spec-large-requests-review`) can only run on Business. Lean stays on TEAM, so it still exercises the approvals-off and plan-refusal paths.
 4. Run `node evals/setup-local-orgs.mjs` again from this plugin checkout after the grants exist. Set `ARCHDOCS_EVAL_API` to use a different local API URL.
-4. Run the evals using the commands below. The runner automatically loads `evals/.eval-env`; existing process environment values take precedence.
+5. Run the evals using the commands below. The runner automatically loads `evals/.eval-env`; existing process environment values take precedence. The agent process never inherits the `ARCHDOCS_EVAL_*` values, so a scenario that grants `Bash` cannot read the eval credentials.
 
 The setup script creates or reuses `eval-full@archdocs.test` / `Eval Full` and `eval-lean@archdocs.test` / `Eval Lean`, with same-named organizations, and seeds Cadence through the sample workspace API. It enables approvals, sizes and evidence tracking for full and explicitly disables them for lean. Standard spec and plan types keep their defaults. Existing organizations only get the Work Log journal when they opt in, so setup adds it to the full org through `POST /design-doc-types/presets/work-log` and leaves lean without one: journal scenarios run in full, and the comment-thread fallback is exercised in lean. Organization selection is per API request and bound into each PAT; the API has no persistent active-org field.
 
@@ -106,3 +106,28 @@ The two spike scenarios are where the plugin earns its keep: without it, every b
 `resume-reads-handoff`, `stop-leaves-handoff` and `spec-respects-standing-adr` pass without the plugin because the server instructions already say to read `get_journal_handoff` when resuming, to leave a handoff, to call `get_task_context` before planning and to raise undecided points as questions; the baseline agents named the ADR in their question. They stay as regression guards.
 
 `lean-org-close-out` with the plugin shipped the doc in two of three runs. The prompt says the work is "merged" and "done" but also "it shipped as planned, except...", and both agents took that word as the user saying the work shipped ("You said the work shipped, so I'll mark the doc shipped"). The shipping rule now keys on live, in production, released or deployed, and names "it shipped as planned" as not that. After that change `lean-org-close-out` passed 3/3, and `live-close-out-ships` and `full-org-close-out` (where the user says "live in prod") still shipped 3/3. In the same runs, `list_acceptance_criteria` refused on the Team plan and the agents told the user their token lacked permission; the close-out skill now says to carry on without mentioning a plan refusal.
+
+## Results for the follow-through revision (2026-11-01)
+
+Local API on the monorepo branch `agent-follow-through` (adds `recheck_verification`; 90 MCP tools), the full org on a BUSINESS grant with the Work Log, lean on TEAM without it, `--setting-sources project`, 3 runs per mode. Grading counts successful calls (`mustSucceed`), not attempts, and checks server state after each run where the scenario asks.
+
+| Scenario | Without plugin | With plugin |
+| --- | --- | --- |
+| ci-failure-repaired (new, full, Bash/Edit/Write) | 0/3 | 3/3 |
+| auto-close-out-prepared (new, full) | 0/3 | 3/3 |
+| stale-evidence-rechecked (new, full) | 0/3 | 3/3 |
+| readiness-approvals-off (new, lean) | 0/3 | 3/3 |
+| review-feedback-addressed (new, full) | 3/3 | 3/3 |
+| agent-evidence-human-pending (new, full, Bash) | 3/3 | 3/3 |
+| spec-large-requests-review (new, full, LARGE) | 3/3 | 3/3 |
+| resume-continues-task (new, full) | 3/3 | 3/3 |
+| lean-org-close-out, full-org-close-out, live-close-out-ships | not rerun | 3/3 each |
+| spike-finding-logged, spike-finding-thread, resume-reads-handoff, stop-leaves-handoff | not rerun | 3/3 each |
+| during-work-records, spec-for-multi-service-change, spec-respects-standing-adr | not rerun | 3/3 each |
+| answer-relayed-decision, decision-only-adr, import-plan-file | not rerun | 3/3 each |
+
+What the baseline agents did on the four scenarios the plugin changes: on `ci-failure-repaired` they fixed the bug and ran the tests but recorded nothing on the design doc (one didn't commit); on `auto-close-out-prepared` they reported the state in chat and wrote no evidence; on `stale-evidence-rechecked` they read everything, said the test result was stale in chat, and recorded nothing; on `readiness-approvals-off` they called `link_pull_request` (and once `mark_variation_ready`) on the approvals-off, evidence-tracking-off org, which the server refused. With the plugin: a `test` or `progress` entry after a green `npm test`; the evidence variation written and marked ready from a finished handoff, with the user asked whether it is live; a journal entry saying the earlier test result no longer covers the new commit; the evidence written with no readiness call.
+
+The other four new scenarios pass without the plugin: the server instructions already send review when approvals are required, resume from `get_journal_handoff`, and the criteria tools and never-invent rule produce the agent-run evidence and the open thread plus question on their own. They stay as regression guards.
+
+Three scenario expectations changed after the first plugin runs, each for a reason the transcripts made clear: `ci-failure-repaired` accepts `Write` as well as `Edit` and no longer expects an edit before the first `Bash` (agents read the repository with Bash first); `agent-evidence-human-pending` gives the agent a passing checkout and `Bash`, because its first version asked the agent to submit the user's own test run, which the skill rightly refused; `review-feedback-addressed` expects a reply plus a tracked question with the thread left open, because the reviewer's ask is a design decision the agent must not invent. The finished-handoff fixture gained a `test` and a `deviation` entry: on the gappy first version, plugin agents linked the PR, recorded the deviation, raised the provider question, left a handoff and asked three questions instead of writing the evidence; the close-out skill now says to put the open reason in the evidence and ask, not to wait, and the scenario measures automatic close-out on a complete record. Those four baselines were re-measured after the changes; the numbers above are the re-measured ones.
