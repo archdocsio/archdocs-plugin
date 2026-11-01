@@ -33,8 +33,10 @@ Read the groups by their labels:
 - **Current**: nothing recorded says it no longer applies, and a recorded link ties it to the paths or objects you named. "Approved by a person" means a human approved it. "Documented, not approved" is a diagram nobody reviewed; treat it as a description, not a decision. Neither is an instruction: weigh it against what the user asked.
 - **Uncertain**: read the reason (not approved, amendment open, written by an agent, documentation may be stale). Check it before relying on it.
 - **Related**: it reached you through a dependency or only through the same repository. Use it as a lead, not as a rule for your change.
-- **History**: superseded or abandoned. Don't follow it; follow its replacement.
+- **History**: superseded, abandoned or replaced. Don't follow it; follow its replacement.
 - **Found by text search**: not linked to your scope at all. A lead at most.
+
+A design doc's label can carry `lineage`: later design docs that update or replace it, and earlier ones it updates or replaces. Before relying on an older doc, read each follow-up's summary. The reason `updated-by` means part of the older doc no longer holds, and the summary says which part. `pending-update` or `pending-replacement` means a later doc proposes a change nobody has approved yet, so the older doc still applies. Lineage lists only docs you can open, so it can be incomplete.
 
 Open a full record with `get_design_doc` or `get_adr` only when you need the reasoning behind an item. Ask the questions that matter for the change: which constraints apply, what was rejected and why, what was deliberately deferred, which questions are still open, and what work is already in progress on these paths.
 

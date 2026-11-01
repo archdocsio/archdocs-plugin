@@ -11,7 +11,9 @@ This skill covers everything before the work starts. For deciding whether a desi
 
 ## 1. Look before creating
 
-Search for an existing design doc on the topic with `list_design_docs` or `search`. If one exists, show it to the user and offer to continue it. If they want a fresh one that replaces it, create the new doc and ask them to mark the old one as superseded in the app (there is no tool for that).
+Search for an existing design doc on the topic with `list_design_docs` or `search`. If one exists, show it to the user and offer to continue it. If they want a fresh one, create the new doc.
+
+When the new doc changes an earlier design doc, record that once the new doc's spec is written, with `relate_design_doc` on the new doc: `UPDATES` when it changes a defined part and the rest still applies, `REPLACES` when the earlier design no longer applies at all. Write a summary of what changes and, for an update, what stays the same. Pass the spec's current version from `get_design_doc` as `expectedSpecVersion`. The relationship is part of the spec, so it takes effect only when a person approves the spec, and a frozen spec needs an amendment first. Never infer a relationship from dates or doc numbers; if you're not sure the new doc changes the old one, ask. When the server doesn't offer `relate_design_doc`, ask the user to mark the old doc as superseded in the app instead.
 
 ## 2. Gather context
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2
+
+- `writing-a-design-doc` records a follow-up with `relate_design_doc` when a new design doc changes an earlier one: `UPDATES` when it changes a defined part, `REPLACES` when the earlier design no longer applies, with a summary of what changes and, for updates, what stays the same. The relationship is part of the spec, takes effect only when a person approves it, and is never inferred from dates or doc numbers.
+- `using-design-docs` explains label `lineage` and the `updated-by`, `pending-update` and `pending-replacement` reasons, and that lineage lists only docs the reader can open.
+
 ## 0.4.1
 
 - `working-under-a-design-doc` and `writing-a-design-doc` link the item a tool returned (its `url`: a journal entry, question, comment thread, criterion or variation tab) instead of the whole design doc. `designDocUrl` is the doc link.
