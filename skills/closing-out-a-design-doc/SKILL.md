@@ -48,6 +48,8 @@ Write the `evidence` variation with `write_design_doc_variation`, following the 
 
 The brief's outcome, deviations and not-done fields must say the same things as the text, in fewer words. If you don't know why something deviated, say so and ask; don't supply a reason.
 
+Write the evidence even when parts of the record can't be verified from where you are. Say for each claim whether it is verified (a linked pull request, CI, a computed criterion) or reported (a journal entry, the user's word), and list what nobody has checked yet under not done. An unverified record is still a record; an unwritten one helps no one.
+
 Screenshots help here (a dashboard after the change, a test run). Attach them as described in `writing-a-design-doc`.
 
 Then read the evidence variation's `requiredApprovals` from `get_design_doc`: with `features.approvals` off, make no readiness call; `0` means `mark_variation_ready`; above `0` means `request_design_doc_review`, never `mark_variation_ready` first. With approvals on, shipping fails until every required variation is ready or approved, the evidence included.

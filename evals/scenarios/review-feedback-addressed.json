@@ -24,9 +24,6 @@
       "mark_design_doc_shipped",
       "create_design_doc",
       "resolve_comment_thread"
-    ],
-    "state": {
-      "openQuestions": 1
-    }
+    ]
   }
 }

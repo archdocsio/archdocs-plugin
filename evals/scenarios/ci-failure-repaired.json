@@ -2,16 +2,53 @@
   "id": "ci-failure-repaired",
   "org": "full",
   "setup": "with-failing-test-repo",
-  "tools": ["Bash", "Edit", "Write"],
+  "tools": [
+    "Bash",
+    "Edit",
+    "Write"
+  ],
   "prompt": "I pushed the Sequencer SMS recipient formatting for {{designDocNumber}} and CI failed on that revision. The repository is checked out in the current directory. CI output:\n\nnot ok 1 - formats recipient\n  AssertionError: Expected values to be strictly equal:\n  + actual - expected\n  + ' +1 555 0100 '\n  - '+15550100'\n\nTake it from here.",
   "expect": {
-    "mustCall": ["Edit"],
-    "mustSucceed": ["add_journal_entry"],
-    "resultMatches": [{ "tool": "Bash", "pattern": "# fail 0" }],
-    "order": [["Edit", "add_journal_entry"]],
-    "argMatches": [{ "tool": "add_journal_entry", "path": "kind", "pattern": "^(test|progress)$" }],
-    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
-    "argMustNotMatch": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$|work-log|journal" }],
+    "mustCall": [
+      "Bash"
+    ],
+    "mustSucceed": [
+      "add_journal_entry"
+    ],
+    "resultMatches": [
+      {
+        "tool": "Bash",
+        "pattern": "# fail 0"
+      }
+    ],
+    "order": [
+      [
+        "Edit|Write",
+        "add_journal_entry"
+      ],
+      [
+        "Edit|Write",
+        "Bash"
+      ]
+    ],
+    "argMatches": [
+      {
+        "tool": "add_journal_entry",
+        "path": "kind",
+        "pattern": "^(test|progress)$"
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "create_design_doc"
+    ],
+    "argMustNotMatch": [
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$|work-log|journal"
+      }
+    ],
     "finalTextMatches": "pass"
   }
 }

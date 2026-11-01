@@ -290,7 +290,7 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     return { ...vars, threadId: thread.id };
   }
   if (setup === 'with-failing-test-repo') {
-    await writeFailingTestRepo(tempDir);
+    await writeTestRepo(tempDir, { passing: false });
     return { ...vars, repoDir: tempDir };
   }
   if (setup === 'with-authorized-criteria') {
@@ -312,7 +312,9 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     const client = restClient({ ...resetOptions(scenario, env), fetchImpl });
     await client.login();
     await client.request(`/design-docs/${encodeURIComponent(doc.id)}/criteria/baselines/${encodeURIComponent(baseline.id)}/authorize`, { method: 'POST', body: { expectedVersion: baseline.version } });
-    return vars;
+    // The agent must run the check itself to submit evidence, so the checkout's tests pass.
+    await writeTestRepo(tempDir, { passing: true });
+    return { ...vars, repoDir: tempDir };
   }
   if (['with-journal-entries', 'with-stale-test-entry', 'with-done-handoff'].includes(setup)) {
     // A journal with a saved handoff, left by a previous session. Setup never approves anything.
@@ -372,13 +374,14 @@ async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', r
   return doc;
 }
 
-// A one-commit repository whose only test fails: formatRecipient should strip spaces from the number but returns it unchanged.
-async function writeFailingTestRepo(dir) {
+// A one-commit repository with one test: formatRecipient should strip spaces from the number. With passing false it returns the number unchanged.
+async function writeTestRepo(dir, { passing }) {
   const { execFileSync } = await import('node:child_process');
   await mkdir(path.join(dir, 'src'), { recursive: true });
   await mkdir(path.join(dir, 'test'), { recursive: true });
   await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'cadence-sms', type: 'module', scripts: { test: 'node --test' } }, null, 2) + '\n');
-  await writeFile(path.join(dir, 'src', 'sms.mjs'), '// Normalizes a recipient number for the SMS provider.\nexport function formatRecipient(number) {\n  return number;\n}\n');
+  const body = passing ? "  return number.replace(/\\s+/g, '');" : '  return number;';
+  await writeFile(path.join(dir, 'src', 'sms.mjs'), `// Normalizes a recipient number for the SMS provider.\nexport function formatRecipient(number) {\n${body}\n}\n`);
   await writeFile(path.join(dir, 'test', 'sms.test.mjs'), "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { formatRecipient } from '../src/sms.mjs';\n\ntest('formats recipient', () => {\n  assert.equal(formatRecipient(' +1 555 0100 '), '+15550100');\n});\n");
   const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' });
   git('init', '-q');
