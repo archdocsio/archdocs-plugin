@@ -304,11 +304,13 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     return { planFile };
   }
   const docSetups = ['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-failing-test-repo',
-    'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria'];
+    'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria',
+    'with-subsystem-design'];
   if (!docSetups.includes(setup)) throw new Error(`Unknown setup: ${setup}`);
   const standard = await invoke('list_design_doc_types', {});
   // large-doc leaves readiness to the agent under test; every other fixture arrives with spec and plan ready.
-  const doc = await createDocWithSpecAndPlan(invoke, standard, setup === 'large-doc' ? { size: 'LARGE', ready: false } : {});
+  const doc = await createDocWithSpecAndPlan(invoke, standard, setup === 'large-doc' ? { size: 'LARGE', ready: false }
+    : setup === 'with-subsystem-design' ? { design: SUBSYSTEM_DESIGN } : {});
   const vars = { designDocNumber: doc.displayNumber, designDocId: doc.id };
   if (setup === 'with-open-question') await invoke('add_design_doc_question', {
     designDocId: doc.id, text: 'Twilio or MessageBird for SMS?',
@@ -386,20 +388,36 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
   return vars;
 }
 
-// The SMS delivery doc every doc fixture starts from. Readiness follows the org's rules; setup never approves anything.
-async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', ready = true } = {}) {
-  const doc = await invoke('create_design_doc', { title: 'SMS delivery channel', size });
-  if (!doc.id || !doc.displayNumber) throw new Error('create_design_doc did not return id and displayNumber');
-  const fixture = {
+const SMS_DESIGN = {
+  title: 'SMS delivery channel',
+  fixture: {
     spec: '# SMS delivery channel\n\nAdd SMS delivery through the Sequencer and Delivery Worker. The provider is undecided between Twilio and MessageBird.\n',
     plan: '# SMS delivery plan\n\nExtend the Sequencer and Delivery Worker for SMS. Stream delivery events to the Event Store. Verify SMS delivery with tests.\n',
-  };
+  },
+};
+
+// The standing design of the Delivery Worker's retry subsystem. autoLink turns the Cadence object names into mentions,
+// so a discussion about retries can reach the doc through the catalog as well as by its title.
+const SUBSYSTEM_DESIGN = {
+  title: 'Delivery Worker retries: requeue with backoff and a dead-letter queue',
+  autoLink: true,
+  fixture: {
+    spec: '# Delivery Worker retries\n\nA failed send never retries in place inside the Delivery Worker. The message goes back on the outbound queue with exponential backoff (30s, 2m, 10m, 1h), and after five attempts it moves to the dead-letter queue, where the Sequencer marks the step failed. Retrying in place was rejected: it holds a worker slot while a provider is down, and it stalled the Delivery Worker during the 2025 email provider outage.\n',
+    plan: '# Delivery Worker retries plan\n\nAdd the backoff schedule to the Delivery Worker requeue path, add the dead-letter queue, and have the Sequencer consume dead-letter events. Verify with a provider outage test.\n',
+  },
+};
+
+// The design doc a doc fixture starts from (the SMS delivery doc unless the setup passes another). Readiness follows the org's rules; setup never approves anything.
+async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', ready = true, design = SMS_DESIGN } = {}) {
+  const doc = await invoke('create_design_doc', { title: design.title, size });
+  if (!doc.id || !doc.displayNumber) throw new Error('create_design_doc did not return id and displayNumber');
+  const { fixture } = design;
   for (const variation of ['spec', 'plan']) {
     const type = standard.types?.find((type) => type.key === variation && type.enabled);
     if (!type) throw new Error(`Eval org needs an enabled ${variation} type`);
     const brief = Object.fromEntries(type.briefFields.filter((field) => !field.computed)
       .map((field) => [field.key, fixture[variation].split('\n').slice(2).join('\n').trim()]));
-    await invoke('write_design_doc_variation', { designDocId: doc.id, variation, content: fixture[variation], brief });
+    await invoke('write_design_doc_variation', { designDocId: doc.id, variation, content: fixture[variation], brief, ...(design.autoLink ? { autoLink: true } : {}) });
     // Both readiness and review require the approvals feature, even in lean orgs.
     if (ready && standard.features?.approvals) {
       const action = type.approvalFor?.includes(size) ? 'request_design_doc_review' : 'mark_variation_ready';

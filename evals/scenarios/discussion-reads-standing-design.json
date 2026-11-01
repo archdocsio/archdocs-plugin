@@ -1,0 +1,11 @@
+{
+  "id": "discussion-reads-standing-design",
+  "org": "full",
+  "setup": "with-subsystem-design",
+  "prompt": "Quick question, we're not building anything yet. When a send fails in Cadence, should the Delivery Worker retry in place a few times before giving up, or do something else? What would you recommend?",
+  "expect": {
+    "mustSucceed": ["get_task_context", "get_design_doc"],
+    "mustNotCall": ["create_design_doc"],
+    "resultMatches": [{ "tool": "get_design_doc", "pattern": "Delivery Worker retries: requeue with backoff" }]
+  }
+}

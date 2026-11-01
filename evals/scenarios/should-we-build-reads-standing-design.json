@@ -1,0 +1,11 @@
+{
+  "id": "should-we-build-reads-standing-design",
+  "org": "full",
+  "setup": "with-subsystem-design",
+  "prompt": "Product wants a \"Resend now\" button on failed messages in Cadence that immediately tries the provider again, up to three times in a row, so support doesn't have to wait. Should we build it, and how would you shape it? Just give me your take, no code yet.",
+  "expect": {
+    "mustSucceed": ["get_task_context", "get_design_doc"],
+    "mustNotCall": ["create_design_doc"],
+    "resultMatches": [{ "tool": "get_design_doc", "pattern": "Delivery Worker retries: requeue with backoff" }]
+  }
+}
