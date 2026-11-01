@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, resetEvalOrg, runClaude, runScenario, main, loadEvalEnv } from './run.mjs';
+import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, resetEvalOrg, runClaude, runScenario, main, loadEvalEnv, checkState } from './run.mjs';
 
 const runEnv = {
   ARCHDOCS_EVAL_PAT: 'test-credential',
@@ -104,6 +104,57 @@ test('buildClaudeArgs includes required flags and plugin only with skills', () =
   assert.deepEqual(buildClaudeArgs({ ...options, mode: 'with' }), [...required, '--plugin-dir', options.pluginDir]);
   assert.throws(() => buildClaudeArgs({ ...options, mode: 'both' }), /Invalid mode/);
 });
+test('buildClaudeArgs appends scenario tools after Read and rejects unsafe names', () => {
+  const options = { mcpConfigPath: 'mcp.json', pluginDir: 'plugin', mode: 'without' };
+  const args = buildClaudeArgs({ ...options, tools: ['Bash', 'Edit'] });
+  const index = args.indexOf('--allowedTools');
+  assert.deepEqual(args.slice(index, index + 5), ['--allowedTools', 'mcp__archdocs-eval', 'Read', 'Bash', 'Edit']);
+  assert.deepEqual(args.slice(index + 5, index + 7), ['--setting-sources', 'project']);
+  assert.throws(() => buildClaudeArgs({ ...options, tools: ['Bash(rm *)'] }), /tool name/);
+});
+test('checkState compares design doc, journal, thread and criteria state against expectations', async () => {
+  const doc = {
+    status: 'APPROVED',
+    openQuestionCount: 1,
+    variations: [{ typeKey: 'spec', state: 'READY' }, { typeKey: 'evidence', state: 'DRAFT' }, { typeKey: 'work-log', contentMode: 'JOURNAL' }],
+  };
+  const invoke = async (name, args) => {
+    if (name === 'get_design_doc') return doc;
+    if (name === 'list_journal_entries') return { entries: [{ number: 3, kind: 'handoff' }, { number: 2, kind: 'progress' }, { number: 1, kind: 'blocker' }], nextCursor: null, total: 3 };
+    if (name === 'list_comment_threads') return [{ id: 't1', resolved: false }];
+    if (name === 'get_verification_status') return { summary: { state: 'PARTIAL' }, criteria: [{ key: 'AC-1', outcome: 'SATISFIED' }, { key: 'AC-2', outcome: 'PENDING' }] };
+    throw new Error(`unexpected ${name} ${JSON.stringify(args)}`);
+  };
+  const context = { invoke, designDocId: 'doc-1' };
+  assert.deepEqual(await checkState({
+    variationState: { spec: 'READY', evidence: 'DRAFT' }, designDocStatus: 'APPROVED', openQuestions: 1,
+    journalKinds: ['progress', 'handoff'], journalLastKind: 'handoff', threadResolved: false,
+    criteriaOutcomes: { 'AC-1': 'SATISFIED', 'AC-2': 'PENDING' },
+  }, context), []);
+  const failures = await checkState({
+    variationState: { evidence: 'READY' }, designDocStatus: 'SHIPPED', openQuestions: 0,
+    journalKinds: ['test'], journalLastKind: 'progress', threadResolved: true, criteriaOutcomes: { 'AC-2': 'SATISFIED' },
+  }, context);
+  assert.equal(failures.length, 7, failures.join('\n'));
+  assert.match(failures[0], /evidence.*expected READY.*DRAFT/);
+  assert.match(failures[1], /status.*expected SHIPPED.*APPROVED/);
+  assert.match(failures[2], /open questions.*expected 0.*1/);
+  assert.match(failures[3], /journal.*test/);
+  assert.match(failures[4], /last journal entry.*expected progress.*handoff/);
+  assert.match(failures[5], /thread.*resolved/);
+  assert.match(failures[6], /AC-2.*expected SATISFIED.*PENDING/);
+});
+test('checkState reads the journal variation key from the doc and reports a missing journal or thread', async () => {
+  const invoke = async (name) => {
+    if (name === 'get_design_doc') return { status: 'DRAFT', openQuestionCount: 0, variations: [{ typeKey: 'spec', state: 'DRAFT' }] };
+    if (name === 'list_comment_threads') return [];
+    throw new Error(`unexpected ${name}`);
+  };
+  const failures = await checkState({ journalKinds: ['handoff'], threadResolved: true }, { invoke, designDocId: 'doc-1' });
+  assert.equal(failures.length, 2, failures.join('\n'));
+  assert.match(failures[0], /no journal/);
+  assert.match(failures[1], /no comment thread/);
+});
 test('substitute replaces repeated variables and preserves Windows paths', () => {
   assert.equal(substitute('{{planFile}} {{n}} {{n}}', { planFile: 'C:\\temp dir\\plan.md', n: 0 }), 'C:\\temp dir\\plan.md 0 0');
 });
@@ -159,8 +210,8 @@ test('setup creates fresh spec and plan with briefs, ready states and open quest
     return {};
   };
   const options = { endpoint: 'endpoint', pat: 'test-credential', tempDir: await temporary(t), call };
-  assert.deepEqual(await setupScenario({ setup: 'with-open-question' }, options), { designDocNumber: 'DD-0001' });
-  assert.deepEqual(await setupScenario({ setup: 'design-doc-with-spec-and-plan' }, options), { designDocNumber: 'DD-0002' });
+  assert.deepEqual(await setupScenario({ setup: 'with-open-question' }, options), { designDocNumber: 'DD-0001', designDocId: 'id-1' });
+  assert.deepEqual(await setupScenario({ setup: 'design-doc-with-spec-and-plan' }, options), { designDocNumber: 'DD-0002', designDocId: 'id-2' });
   const writes = calls.filter((call) => call.name === 'write_design_doc_variation');
   assert.equal(writes.length, 4);
   for (const { args } of writes) {
@@ -206,7 +257,7 @@ test('with-journal-entries setup adds entries and a handoff to the enabled journ
   };
   const tempDir = await temporary(t);
   assert.deepEqual(await setupScenario({ setup: 'with-journal-entries' }, { endpoint: 'endpoint', pat: 'test-credential', tempDir, call: call(true) }),
-    { designDocNumber: 'DD-0003', journalVariation: 'work-log' });
+    { designDocNumber: 'DD-0003', designDocId: 'fixture', journalVariation: 'work-log' });
   const entries = calls.filter((call) => call.name === 'add_journal_entry');
   assert.equal(entries.length, 3);
   assert.ok(entries.every((entry) => entry.args.designDocId === 'fixture' && entry.args.variation === 'work-log' && entry.args.summary));
@@ -238,6 +289,94 @@ test('with-standing-adr setup creates an accepted ADR and links it to the Delive
   assert.equal(link.org, 'full-org');
   assert.deepEqual(JSON.parse(link.body), { links: [{ targetType: 'object', targetId: 'worker' }] });
   assert.equal(calls.some((call) => call.name === 'create_design_doc'), false);
+});
+// A fake MCP that answers the calls every doc fixture makes; `extra` answers the setup-specific ones.
+function fixtureCall(calls, { journal = true, extra = () => undefined } = {}) {
+  return async (endpoint, pat, name, args) => {
+    calls.push({ name, args });
+    const answer = extra(name, args);
+    if (answer !== undefined) return answer;
+    if (name === 'list_design_doc_types') {
+      return { features: { approvals: true }, types: ['spec', 'plan'].map((key) => ({ key, enabled: true, approvalFor: [], briefFields: [] }))
+        .concat(journal ? [{ key: 'work-log', enabled: true, contentMode: 'JOURNAL', briefFields: [] }] : []) };
+    }
+    if (name === 'create_design_doc') return { id: 'fixture', displayNumber: 'DD-0009' };
+    return {};
+  };
+}
+const base = { endpoint: 'endpoint', pat: 'test-credential', env: runEnv };
+test('with-failing-test-repo writes a committed repo whose test fails on the formatting bug', async (t) => {
+  const calls = [];
+  const tempDir = await temporary(t);
+  const vars = await setupScenario({ setup: 'with-failing-test-repo', org: 'full' }, { ...base, tempDir, call: fixtureCall(calls) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', repoDir: tempDir });
+  assert.equal(JSON.parse(await readFile(path.join(tempDir, 'package.json'), 'utf8')).scripts.test, 'node --test');
+  assert.match(await readFile(path.join(tempDir, 'test', 'sms.test.mjs'), 'utf8'), /\+15550100/);
+  assert.match(await readFile(path.join(tempDir, 'src', 'sms.mjs'), 'utf8'), /export function formatRecipient/);
+  const { execFileSync } = await import('node:child_process');
+  assert.match(execFileSync('git', ['log', '--format=%s'], { cwd: tempDir, encoding: 'utf8' }), /^feat: sms recipient formatting\s*$/);
+  assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: tempDir, encoding: 'utf8' }).trim(), '');
+});
+test('with-review-thread opens an actionable reviewer thread on the spec', async (t) => {
+  const calls = [];
+  const vars = await setupScenario({ setup: 'with-review-thread', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls, { extra: (name) => (name === 'create_comment_thread' ? { id: 'thread-1' } : undefined) }) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', threadId: 'thread-1' });
+  const thread = calls.find((call) => call.name === 'create_comment_thread').args;
+  assert.equal(thread.designDocId, 'fixture');
+  assert.equal(thread.anchorField, 'spec');
+  assert.match(thread.content, /^Reviewer: .*rejects a number/);
+});
+test('with-stale-test-entry records a passing test at a commit before the handoff', async (t) => {
+  const calls = [];
+  const vars = await setupScenario({ setup: 'with-stale-test-entry', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', journalVariation: 'work-log' });
+  const kinds = calls.filter((call) => call.name === 'add_journal_entry').map((call) => call.args.kind);
+  assert.deepEqual(kinds, ['progress', 'blocker', 'test', 'handoff']);
+  const testEntry = calls.find((call) => call.args?.kind === 'test').args;
+  assert.deepEqual(testEntry.references, [{ kind: 'COMMIT', repo: 'example/cadence', sha: '3f9c2d1e4b5a6c7d8e9f0a1b2c3d4e5f6a7b8c9d' }]);
+});
+test('with-done-handoff leaves a handoff saying nothing is left in the plan', async (t) => {
+  const calls = [];
+  const vars = await setupScenario({ setup: 'with-done-handoff', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', journalVariation: 'work-log' });
+  const entries = calls.filter((call) => call.name === 'add_journal_entry').map((call) => call.args);
+  assert.deepEqual(entries.map((entry) => entry.kind), ['progress', 'progress', 'handoff']);
+  assert.match(entries[2].handoff.done, /PR #42 merged/);
+  assert.match(entries[2].handoff.next, /Nothing left in the plan/);
+});
+test('large-doc creates a LARGE doc with spec and plan and no readiness calls', async (t) => {
+  const calls = [];
+  const vars = await setupScenario({ setup: 'large-doc', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture' });
+  assert.equal(calls.find((call) => call.name === 'create_design_doc').args.size, 'LARGE');
+  assert.equal(calls.filter((call) => call.name === 'write_design_doc_variation').length, 2);
+  assert.equal(calls.some((call) => ['mark_variation_ready', 'request_design_doc_review'].includes(call.name)), false);
+});
+test('with-authorized-criteria proposes an agent-permitted and a human-only attestation and authorizes them as the person', async (t) => {
+  const calls = [];
+  const requests = [];
+  const { createHash } = await import('node:crypto');
+  const fetchImpl = async (url, options) => {
+    const route = new URL(url).pathname;
+    requests.push({ method: options.method, route, auth: options.headers.Authorization, body: options.body });
+    return Response.json(route === '/auth/login' ? { token: 'jwt' } : { id: 'baseline-1', version: 1, status: 'AUTHORIZED' });
+  };
+  const call = fixtureCall(calls, { extra: (name) => (name === 'propose_acceptance_criteria' ? { id: 'baseline-1', version: 1, status: 'DRAFT' } : undefined) });
+  const vars = await setupScenario({ setup: 'with-authorized-criteria', org: 'full' }, { ...base, tempDir: await temporary(t), call, fetchImpl });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture' });
+  const proposed = calls.find((call) => call.name === 'propose_acceptance_criteria').args;
+  assert.equal(proposed.designDocId, 'fixture');
+  const [agent, human] = proposed.criteria;
+  assert.equal(agent.key, 'AC-1');
+  assert.equal(agent.requirement.kind, 'attest');
+  assert.equal(agent.requirement.by, 'HUMAN_OR_AGENT');
+  assert.equal(agent.requirement.statementHash, createHash('sha256').update(agent.requirement.statement).digest('hex'));
+  assert.equal(human.key, 'AC-2');
+  assert.equal(human.requirement.by, 'HUMAN');
+  const authorize = requests.find((request) => request.route === '/design-docs/fixture/criteria/baselines/baseline-1/authorize');
+  assert.equal(authorize.method, 'POST');
+  assert.equal(authorize.auth, 'Bearer jwt');
+  assert.deepEqual(JSON.parse(authorize.body), { expectedVersion: 1 });
 });
 test('plan-file setup writes an importable plan', async (t) => {
   const vars = await setupScenario({ setup: 'plan-file' }, { tempDir: await temporary(t) });
@@ -362,6 +501,30 @@ test('runScenario writes per-run config, grades JSONL, redacts PAT and cleans up
   await assert.rejects(readFile(configPath), /ENOENT/);
   assert.doesNotMatch(await readFile(path.join(dir, 'fixture.without.1.jsonl'), 'utf8'), /test-credential/);
 });
+test('runScenario grants scenario tools and appends server-state failures after grading', async (t) => {
+  const dir = await temporary(t);
+  const scenario = {
+    id: 'fixture', org: 'full', setup: 'design-doc-with-spec-and-plan', tools: ['Bash', 'Edit'], prompt: 'Work on {{designDocNumber}}',
+    expect: { mustCall: ['add_journal_entry'], state: { variationState: { evidence: 'READY' } } },
+  };
+  const call = async (endpoint, pat, name) => {
+    if (name === 'list_design_doc_types') return { features: { approvals: false }, types: ['spec', 'plan'].map((key) => ({ key, enabled: true, approvalFor: [], briefFields: [] })) };
+    if (name === 'create_design_doc') return { id: 'doc-7', displayNumber: 'DD-0007' };
+    if (name === 'get_design_doc') return { status: 'DRAFT', openQuestionCount: 0, variations: [{ typeKey: 'evidence', state: 'DRAFT' }] };
+    return {};
+  };
+  const grade = await runScenario(scenario, 'without', 1, dir, {
+    env: runEnv, tempRoot: dir, fetchImpl: emptyOrgFetch, call,
+    execute: async (args, prompt) => {
+      assert.equal(prompt, 'Work on DD-0007');
+      const index = args.indexOf('--allowedTools');
+      assert.deepEqual(args.slice(index + 1, index + 5), ['mcp__archdocs-eval', 'Read', 'Bash', 'Edit']);
+      return { code: 0, stderr: '', stdout: JSON.stringify({ type: 'assistant', message: { content: [{ type: 'tool_use', id: 'x', name: 'mcp__archdocs-eval__add_journal_entry', input: {} }] } }) + '\n{"type":"result","subtype":"success"}\n' };
+    },
+  });
+  assert.equal(grade.pass, false);
+  assert.deepEqual(grade.failures, ['State: variation evidence expected READY, got DRAFT']);
+});
 test('runScenario cleans up after setup or execution failure', async (t) => {
   const dir = await temporary(t);
   for (const setup of ['none', 'design-doc-with-spec-and-plan']) {
@@ -400,12 +563,19 @@ test('all nineteen scenario files have matching ids and use known tools and vali
     assert.equal(file, `${scenario.id}.json`);
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
-    assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file'].includes(scenario.setup ?? 'none'));
-    const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? [])];
-    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.order ?? []).flat(), ...argExpectations.map((item) => item.tool)]) {
-      for (const alternative of tool.split('|')) assert.ok(tools.has(alternative), `${scenario.id}: ${alternative}`);
+    assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file',
+      'with-failing-test-repo', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria'].includes(scenario.setup ?? 'none'));
+    // Scenario tools are Claude Code tools, not MCP tools; they are granted on top of Read.
+    for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
+    const builtIn = new Set(scenario.tools ?? []);
+    const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? []), ...(scenario.expect.expectFailure ?? []), ...(scenario.expect.resultMatches ?? [])];
+    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flat(), ...argExpectations.map((item) => item.tool)]) {
+      for (const alternative of tool.split('|')) assert.ok(tools.has(alternative) || builtIn.has(alternative), `${scenario.id}: ${alternative}`);
     }
     for (const { pattern } of argExpectations) assert.doesNotThrow(() => new RegExp(pattern));
+    for (const key of Object.keys(scenario.expect.state ?? {})) {
+      assert.ok(['variationState', 'designDocStatus', 'openQuestions', 'journalKinds', 'journalLastKind', 'threadResolved', 'criteriaOutcomes'].includes(key), `${scenario.id}: state.${key}`);
+    }
     for (const pattern of [scenario.expect.finalTextMatches, scenario.expect.finalTextNotMatches]) {
       if (pattern !== undefined) assert.doesNotThrow(() => new RegExp(pattern, 'i'));
     }
