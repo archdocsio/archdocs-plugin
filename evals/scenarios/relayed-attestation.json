@@ -1,0 +1,37 @@
+{
+  "id": "relayed-attestation",
+  "org": "full",
+  "setup": "with-authorized-criteria",
+  "prompt": "I'm the product owner on {{designDocNumber}}. I read the new SMS copy on my phone this morning and I confirm it, it's good to go. Record that on the design doc.",
+  "expect": {
+    "mustSucceed": [
+      "submit_evidence"
+    ],
+    "argMatches": [
+      {
+        "tool": "submit_evidence",
+        "path": "criterionKey",
+        "pattern": "^AC-2$",
+        "ok": true
+      },
+      {
+        "tool": "submit_evidence",
+        "path": "decision.statement",
+        "pattern": "I confirm it",
+        "ok": true
+      }
+    ],
+    "argMustNotMatch": [
+      {
+        "tool": "submit_evidence",
+        "path": "criterionKey",
+        "pattern": "^AC-1$"
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "approve_variation",
+      "authorize_acceptance_criteria"
+    ]
+  }
+}

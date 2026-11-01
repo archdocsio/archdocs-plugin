@@ -31,6 +31,12 @@
         "path": "content",
         "pattern": "[Bb]atch",
         "ok": true
+      },
+      {
+        "tool": "mark_design_doc_shipped",
+        "path": "decision.statement",
+        "pattern": "live in prod",
+        "ok": true
       }
     ],
     "state": {

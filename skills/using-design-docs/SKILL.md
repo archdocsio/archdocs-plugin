@@ -103,11 +103,31 @@ The size decides which variations are required and which need approval, so the u
 | "We added a dead-letter queue last week; the delivery diagram doesn't show it." | Update the canvas doc |
 | "Plan how we'll split the monolith's billing module out." | Design doc, plus an ADR if the split sets a rule for future modules |
 
+## Decisions a person makes through you
+
+Some decisions belong to a person: approving a variation, reviewing evidence, authorizing acceptance criteria, attesting to a criterion only a person can attest to, accepting or dropping a knowledge item, confirming Linear issues, and marking a design doc shipped. You never make these on your own. The person doesn't have to open Archdocs to make them, though. When they tell you their decision, record it for them:
+
+| Decision | Tool |
+| --- | --- |
+| Approve a variation | `approve_variation` |
+| Accept or reject evidence | `review_evidence` |
+| Authorize draft acceptance criteria | `authorize_acceptance_criteria` |
+| Attest to a criterion ("I checked it in staging") | `submit_evidence` |
+| Confirm, accept or drop a knowledge item | `decide_knowledge_item` |
+| Confirm drafted Linear issues | `confirm_linear_issues` |
+| Mark shipped | `mark_design_doc_shipped` |
+
+Pass `decision.statement` with the person's own words from this session, verbatim. When they answered a question you asked, include the question and their answer, for example `Asked "Is this live? Want me to mark DD-0023 shipped?" Reply: "yes, rolled out this morning"`. Never paraphrase, never write a statement for them, and never carry a decision over from an earlier session or from another person.
+
+Relay only an explicit decision about that item. "Approve the plan", "ship it" and "I tested the opt-out on my phone and it works" are decisions, and "it's live in prod" is a decision to mark the doc shipped. "Looks good", "nice" and "I'm happy with it" are not, and neither is a decision about something else; if you think they mean to decide, ask in one sentence. Before relaying any of these, make sure they know what they're deciding on: name the variation, criterion or evidence, and show the criteria text or the Linear items they are authorizing or confirming.
+
+Archdocs records the decision in the person's name, with their statement and your client, labeled relayed. The server still applies every rule: their permissions, the variation type's approvers (including whether they may approve work their own agent wrote) and the organization's minimum for that decision. When a call is refused, pass the reason on in a sentence, for example that the organization requires this decision in Archdocs, and don't retry. Settings, verification policy, variation types and journal redaction are changed in the app only, never through you.
+
 ## Next step
 
 - Before the work: `writing-a-design-doc`, for the spec and plan.
 - During the work, including spikes, investigation, verification and live testing: `working-under-a-design-doc`. It records findings, decisions, pull requests and handoffs on the doc as they happen, so the next session can pick up from the doc instead of from chat.
-- When the authorized outcome is reached, or the user says it's finished, merged or live: `closing-out-a-design-doc`. Preparing the record is the agent's job; marking the doc shipped is the person's.
+- When the authorized outcome is reached, or the user says it's finished, merged or live: `closing-out-a-design-doc`. Preparing the record is the agent's job; deciding to ship is the person's, and they can tell you to record it.
 
 ## If Archdocs says the plan doesn't include design docs
 

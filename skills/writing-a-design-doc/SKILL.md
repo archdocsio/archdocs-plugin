@@ -110,7 +110,7 @@ As soon as a document variation is written and the user hasn't asked for more ch
 
 - `features.approvals` off: there is no ready state. Make neither call.
 - `requiredApprovals` is 0: `mark_variation_ready`. That is the last step; don't ask anyone to approve it.
-- `requiredApprovals` is above 0: `request_design_doc_review`. Don't call `mark_variation_ready` first; the server refuses it when approval is required. Agents cannot approve. Tell the user how many approvals it needs and who can give them (the type's approvers).
+- `requiredApprovals` is above 0: `request_design_doc_review`. Don't call `mark_variation_ready` first; the server refuses it when approval is required. Agents never approve on their own. Tell the user how many approvals it needs and who can give them (the type's approvers). If the user is one of them and tells you to approve that variation, record it with `approve_variation` and their words in `decision.statement` (see `using-design-docs`, "Decisions a person makes through you").
 
 Don't hold either call back because questions are open: questions are tracked on their own, and ready means "the author is done", not "approved". Without ready or review, the doc can't move to approved, and with approvals on it can't ship. Journals have no ready state.
 

@@ -582,10 +582,10 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all twenty-seven scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all twenty-eight scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 27);
+  assert.equal(files.length, 28);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));

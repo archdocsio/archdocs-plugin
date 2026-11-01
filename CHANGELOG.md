@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- Agents record decisions a person tells them, instead of sending them to the app. `using-design-docs` adds "Decisions a person makes through you": approving a variation (`approve_variation`), reviewing evidence (`review_evidence`), authorizing acceptance criteria (`authorize_acceptance_criteria`), attesting to a criterion (`submit_evidence`), accepting or dropping a knowledge item (`decide_knowledge_item`), confirming Linear issues (`confirm_linear_issues`) and marking shipped (`mark_design_doc_shipped`), each with the person's own words from the session in `decision.statement`. Only an explicit decision about that item counts; "looks good" is not one. Archdocs records it in the person's name, labeled relayed, and still applies their permissions, the approver rules and the organization's minimum for that decision. Needs an Archdocs server with these tools (live on archdocs.io since 2026-11-01).
+- `closing-out-a-design-doc` passes the person's words when it ships on their say-so, and records an attestation they relay as theirs instead of keeping it out of the evidence. Shipping with an exception still happens in the app.
+- `working-under-a-design-doc` submits a person's relayed attestation with `decision.statement` instead of only noting it in the journal, and relays a person's decision on a knowledge item.
+- `writing-a-design-doc` lets an approver approve through the agent after `request_design_doc_review`.
+- Evals: new `relayed-attestation` scenario; `live-close-out-ships` expects the person's words on the ship call; the review and agent-evidence scenarios must not call `approve_variation`.
+
 ## 0.6.0
 
 - New skill `importing-design-docs` and command `/archdocs:import-docs`: bring a team's existing design docs, RFCs and decision records into Archdocs as history. The agent classifies each file (spec, plan, RFC, decision record, not a document), pairs specs with plans, reads status, date, author and identifier out of frontmatter, export metadata or git, shows the person one mapping table with every guess marked, and only after approval imports each document with `import_design_doc` (or `create_adr` with `historical: true`). Imported documents land in their final status (SHIPPED by default) with their original date, author, identifier and a link back, skip review and notifications, and re-import by the same identifier updates instead of duplicating. Team plan and above; the server refuses on Free.

@@ -23,7 +23,7 @@ If the work followed `working-under-a-design-doc`, much of the evidence already 
 - without a journal, the "Deviations from the plan" thread on the plan variation, from `list_comment_threads` on the design doc (with evidence tracking off, PR links are there too)
 - the acceptance criteria, when the server offers them: `list_acceptance_criteria` for what the organization checks, `get_verification_status` for what Archdocs has computed
 
-Read all of it before looking anywhere else. Each criterion outcome tells you what is still yours to do: `PENDING` without evidence means produce it; `FAILED` means fix it or record a deviation; `stale` (a commit after the evidence) means rerun the check and call `recheck_verification`; a human-only attestation and a plan that doesn't include verification are not yours to resolve, so name them in the evidence and move on. Journal entries are reported activity: a "tests pass" entry says someone reported it, not that it was verified. The evidence reports what pull requests, CI, acceptance criteria or the user confirm.
+Read all of it before looking anywhere else. Each criterion outcome tells you what is still yours to do: `PENDING` without evidence means produce it; `FAILED` means fix it or record a deviation; `stale` (a commit after the evidence) means rerun the check and call `recheck_verification`; a plan that doesn't include verification is not yours to resolve, and neither is a human-only attestation unless the person tells you they did it (section 3); name them in the evidence and move on. Journal entries are reported activity: a "tests pass" entry says someone reported it, not that it was verified. The evidence reports what pull requests, CI, acceptance criteria or the user confirm.
 
 ## 3. Fill the gaps
 
@@ -36,7 +36,7 @@ When `features.evidenceTracking` is on, fill in what's missing:
 
 When it's off, skip both tools and put the PR links in the evidence text.
 
-When the server offers acceptance criteria, call `list_acceptance_criteria`. Call `submit_evidence` only for checks you ran yourself, on criteria whose statement allows agents; a person's confirmation goes into the evidence text as theirs, never into an attestation. Then read `get_verification_status` and report it as Archdocs computed it; after a `recheck_verification`, a criterion stays pending until its `evaluatedAt` moves. Never write that a criterion is verified or satisfied yourself; the evidence brief's `verification` field is computed. When Linear is connected, `list_linear_work` gives issue and project status and the pull requests correlated with them; a done issue is a lead for the evidence, not verification, and it never ships the doc. Skip both when the server doesn't offer the tools, and when a call refuses because the plan doesn't include the feature, carry on without mentioning it.
+When the server offers acceptance criteria, call `list_acceptance_criteria`. Call `submit_evidence` on your own only for checks you ran yourself, on criteria whose statement allows agents. When the person tells you they did what a criterion asks, submit it for them with a short `note` and their words in `decision.statement`; Archdocs records it as their attestation, labeled relayed. Their words go in verbatim; never turn your reading of the record into a statement from them. Then read `get_verification_status` and report it as Archdocs computed it; after a `recheck_verification`, a criterion stays pending until its `evaluatedAt` moves. Never write that a criterion is verified or satisfied yourself; the evidence brief's `verification` field is computed. When Linear is connected, `list_linear_work` gives issue and project status and the pull requests correlated with them; a done issue is a lead for the evidence, not verification, and it never ships the doc. Skip both when the server doesn't offer the tools, and when a call refuses because the plan doesn't include the feature, carry on without mentioning it.
 
 ## 4. Write the evidence
 
@@ -72,11 +72,11 @@ Call `list_design_doc_questions`. Some questions will have been settled during t
 
 Proposed objects (`[[new: ...]]` mentions) are accepted into the catalog or dropped by a person at ship time in the app. List them for the user.
 
-Approvals, opening amendments, superseding and abandoning are done by people in the app. When work was abandoned, tell the user to mark the design doc abandoned with a reason there, and don't write evidence for work that didn't happen.
+Approvals and the ship decision belong to people. They can make them in the app or tell you, and you record what they said (see `using-design-docs`, "Decisions a person makes through you"). Opening amendments, superseding and abandoning are done by people in the app. When work was abandoned, tell the user to mark the design doc abandoned with a reason there, and don't write evidence for work that didn't happen.
 
 ## 8. Shipping
 
-Shipping means the change is live for its users, not merged. Call `mark_design_doc_shipped` only when the evidence variation is written (and ready or approved where the organization requires it), and the user has said the change is live, in production, released or deployed.
+Shipping means the change is live for its users, not merged. Call `mark_design_doc_shipped` only when the evidence variation is written (and ready or approved where the organization requires it), and the user has said the change is live, in production, released or deployed. That is their ship decision, so pass their words in `decision.statement`: the sentence where they said it's live, or your question and their yes. Archdocs records the ship in their name, labeled relayed.
 
 Before asking the user for anything, read `canShip`, each variation's `requiredApprovals` and `amendmentOpen`, and the open questions from `get_design_doc`, and finish everything that is yours to finish. Then name the one decision that remains, with what it unblocks.
 
@@ -87,4 +87,7 @@ If the ship call fails, read the reason and act on it:
 - A variation isn't ready or approved: with `requiredApprovals` 0, mark it ready; above 0, request review and tell the user who has to approve it.
 - Open questions, with a request to acknowledge them: list the questions for the user, and pass `acknowledgeOpenQuestions: true` only after they agree to ship with them open.
 - Open questions that must be answered first (the organization blocks shipping on them): list them, and answer only the ones a person has decided.
+- Acceptance criteria need attention, with a request to acknowledge them: list them, and pass `acknowledgeVerification: true` only after the user agrees to ship anyway.
+- Criteria that must pass first: tell the user which ones and what would meet them. A person with `verification:manage` can still ship with an exception, with a reason, from the ship dialog in the app.
+- The organization requires the ship decision in Archdocs, or confirmed by the person: tell the user, and don't retry.
 - An open amendment: tell the user it has to be finished in the app first.

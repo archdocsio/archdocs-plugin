@@ -24,7 +24,8 @@
     "mustNotCall": [
       "mark_design_doc_shipped",
       "create_design_doc",
-      "propose_acceptance_criteria"
+      "propose_acceptance_criteria",
+      "approve_variation"
     ],
     "finalTextMatches": "AC-2|product owner|person|human",
     "resultMatches": [
