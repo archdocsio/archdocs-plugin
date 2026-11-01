@@ -3,7 +3,8 @@
   "setup": "with-open-question",
   "prompt": "On {{designDocNumber}}, the platform lead decided on Twilio in today's call because MessageBird has no US short codes.",
   "expect": {
-    "mustCall": ["answer_design_doc_question"],
-    "argMatches": [{ "tool": "answer_design_doc_question", "path": "answer", "pattern": "Twilio" }]
+    "mustSucceed": ["answer_design_doc_question"],
+    "argMatches": [{ "tool": "answer_design_doc_question", "path": "answer", "pattern": "Twilio" }],
+    "state": { "openQuestions": 0 }
   }
 }

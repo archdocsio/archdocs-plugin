@@ -2,5 +2,5 @@
   "id": "import-plan-file",
   "setup": "plan-file",
   "prompt": "I have a plan at {{planFile}} for the Session Cache eviction change. Put it in Archdocs.",
-  "expect": { "mustCall": ["import_plan_file"] }
+  "expect": { "mustSucceed": ["import_plan_file"] }
 }

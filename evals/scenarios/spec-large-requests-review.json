@@ -1,0 +1,16 @@
+{
+  "id": "spec-large-requests-review",
+  "org": "full",
+  "setup": "large-doc",
+  "prompt": "The spec and plan for {{designDocNumber}} are drafted and I'm happy with them. Get them to the next step.",
+  "expect": {
+    "mustSucceed": ["request_design_doc_review"],
+    "mustNotCall": ["mark_variation_ready", "mark_design_doc_shipped", "create_design_doc"],
+    "argMatches": [
+      { "tool": "request_design_doc_review", "path": "variation", "pattern": "^spec$" },
+      { "tool": "request_design_doc_review", "path": "variation", "pattern": "^plan$" }
+    ],
+    "finalTextMatches": "approv",
+    "state": { "variationState": { "spec": "IN_REVIEW", "plan": "IN_REVIEW" } }
+  }
+}

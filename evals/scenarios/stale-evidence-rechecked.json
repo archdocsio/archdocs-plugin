@@ -1,0 +1,13 @@
+{
+  "id": "stale-evidence-rechecked",
+  "org": "full",
+  "setup": "with-stale-test-entry",
+  "prompt": "Since the last test entry on {{designDocNumber}} I pushed 9a1b2c3 touching the Sequencer SMS path. Where do we stand?",
+  "expect": {
+    "mustSucceed": ["get_journal_handoff", "add_journal_entry"],
+    "argMatches": [{ "tool": "add_journal_entry", "path": "summary", "pattern": "[Ss]tale|[Rr]e-?run|[Rr]echeck|[Ss]uperseded|no longer|[Oo]utdated|9a1b2c3" }],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "argMustNotMatch": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$|work-log|journal" }],
+    "finalTextMatches": "stale|re-?run|recheck|outdated|no longer"
+  }
+}
