@@ -340,9 +340,10 @@ test('with-done-handoff leaves a handoff saying nothing is left in the plan', as
   const vars = await setupScenario({ setup: 'with-done-handoff', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls) });
   assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', journalVariation: 'work-log' });
   const entries = calls.filter((call) => call.name === 'add_journal_entry').map((call) => call.args);
-  assert.deepEqual(entries.map((entry) => entry.kind), ['progress', 'progress', 'handoff']);
-  assert.match(entries[2].handoff.done, /PR #42 merged/);
-  assert.match(entries[2].handoff.next, /Nothing left in the plan/);
+  assert.deepEqual(entries.map((entry) => entry.kind), ['progress', 'progress', 'test', 'deviation', 'handoff']);
+  assert.match(entries[3].summary, /batched every 5 seconds/);
+  assert.match(entries[4].handoff.done, /PR #42 merged/);
+  assert.match(entries[4].handoff.next, /Nothing left in the plan/);
 });
 test('large-doc creates a LARGE doc with spec and plan and no readiness calls', async (t) => {
   const calls = [];

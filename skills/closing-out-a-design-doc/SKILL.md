@@ -46,7 +46,7 @@ Write the `evidence` variation with `write_design_doc_variation`, following the 
 - each deviation from the plan, with its reason
 - what was planned but not done, and whether it's dropped or deferred
 
-The brief's outcome, deviations and not-done fields must say the same things as the text, in fewer words. If you don't know why something deviated, say so and ask; don't supply a reason.
+The brief's outcome, deviations and not-done fields must say the same things as the text, in fewer words. If you don't know why something deviated, say so in the evidence and ask; don't supply a reason, and don't hold the evidence back for the answer.
 
 Write the evidence even when parts of the record can't be verified from where you are. Say for each claim whether it is verified (a linked pull request, CI, a computed criterion) or reported (a journal entry, the user's word), and list what nobody has checked yet under not done. An unverified record is still a record; an unwritten one helps no one.
 
