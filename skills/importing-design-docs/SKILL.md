@@ -21,13 +21,14 @@ Classify each file as one of:
 - **plan**: how. Ordered tasks, phases, checklists, rollout steps.
 - **RFC or design page**: design and rollout in one document.
 - **decision record**: MADR shape (Context, Decision, Consequences, Options) or an `adr/NNNN-*.md` path.
-- **not a document**: README, index, template, meeting notes, changelog. List these for the user; don't import them.
+- **implementation report or evidence**: a write-up of what actually shipped, often `*-report.md` next to a plan. It becomes the `evidence` variation of the document it reports on.
+- **not a document**: README, index, template, meeting notes, changelog, outlines, manual QA checklists, resume or handoff notes, review suggestions. List these for the user; don't import them.
 
 Use the signals the files give you: frontmatter, the first heading, filename patterns (`2026-03-04-billing-design.md` and `2026-03-04-billing.md`, `RFC-042-*.md`, `0007-use-postgres.md`), Notion CSV properties. When you cannot classify a file, put it in the table as unclassified with your best guess marked, and let the person decide.
 
 ## 2. Pair, date and identify
 
-Pair a spec with its plan when they share a topic slug and were written close together. A pair becomes one design doc with two variations. An RFC that mixes design and rollout stays one document and lands whole in the spec variation unless the person asks to split it; when they do, say in the table which headings go to the plan.
+Pair a spec with its plan when they share a topic slug and were written close together. A pair becomes one design doc with two variations. Classify by the file's name and content, not by the folder it sits in: a plans folder often holds reports, outlines and checklists, and a specs folder may hold `*-plan.md` files. A plan written in phases (`...-phase-1-...`, `...-phase-2-...`, `...-00-contracts.md`) is one plan variation: join the files in filename order, each under a comment naming its file. A report that matches the slug becomes the evidence variation. An RFC that mixes design and rollout stays one document and lands whole in the spec variation unless the person asks to split it; when they do, say in the table which headings go to the plan.
 
 For each document, find:
 
@@ -55,7 +56,7 @@ Call `import_design_doc` once per approved row:
 - `sourceSystem`: `github` for a repository, `notion`, `confluence`, `markdown` for loose files, `other`.
 - `externalId`, `sourceUrl`, `originalAuthor`, `originalAuthorEmail`, `originalDate` from the table.
 - `status` and, for ABANDONED, `abandonedReason` from the text; for SUPERSEDED, `supersededBy` with the replacing document's `externalId`.
-- `variations`: the markdown of each variation by type key (`spec`, `plan`, or the organization's own keys from `list_design_doc_types`). Send the file body as it is; the server drops a leading frontmatter block and stores canonical markdown. Do not rewrite, trim or "improve" the text.
+- `variations`: the markdown of each variation by type key (`spec`, `plan`, `evidence`, or the organization's own keys from `list_design_doc_types`). Send the file body as it is; the server drops a leading frontmatter block, removes NUL characters and stores canonical markdown. Do not rewrite, trim or "improve" the text.
 - A `brief` per variation when you can write one honestly from the text (what was decided, the risks it names, the alternatives it rejected). The brief must say what the document says. When you can't, leave it out and the server stores a placeholder naming the source.
 - `autoLink: true`, so plain-text names of catalog objects become mentions.
 
@@ -72,7 +73,11 @@ Each result carries the document's `url`. Keep them for the report.
 - When a document has a lessons or postmortem section, offer to capture it with `propose_knowledge_item` so later changes on the same code see it. A person accepts the capture; it is never an approved rule.
 - When a status or title turned out wrong, re-run `import_design_doc` with the same `externalId` or `sourceUrl`; the document is updated in place and gets a new version.
 
-## 6. Report
+## 6. Check a sample
+
+After the first batch, open two or three results in the app (their `url`) and confirm the title, status, date and alias read right, that a paired document shows both tabs, and that search finds a document by its original identifier. Fix anything wrong with a re-import before continuing.
+
+## 7. Report
 
 Tell the person what landed: how many documents, with each one's `url`; the rows they dropped; the unresolved names; and anything the server refused, with the reason. Imported documents already carry their status, so there is nothing to ship or mark ready. Stop there unless they ask for the next batch.
 
