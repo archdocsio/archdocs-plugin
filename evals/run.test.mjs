@@ -598,15 +598,44 @@ test('all twenty-eight scenario files have matching ids and use known tools and 
     for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
     const builtIn = new Set(scenario.tools ?? []);
     const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? []), ...(scenario.expect.expectFailure ?? []), ...(scenario.expect.resultMatches ?? [])];
-    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flatMap((entry) => (Array.isArray(entry) ? entry : [entry.before, entry.after])), ...argExpectations.map((item) => item.tool)]) {
+    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flatMap((entry) => (Array.isArray(entry) ? entry : [entry.before, entry.after])), ...argExpectations.map((item) => item.tool), ...Object.keys(scenario.expect.maxSuccessfulCalls ?? {})]) {
       for (const alternative of tool.split('|')) assert.ok(tools.has(alternative) || builtIn.has(alternative), `${scenario.id}: ${alternative}`);
     }
     for (const { pattern } of argExpectations) assert.doesNotThrow(() => new RegExp(pattern));
     for (const key of Object.keys(scenario.expect.state ?? {})) {
-      assert.ok(['variationState', 'designDocStatus', 'openQuestions', 'journalKinds', 'journalLastKind', 'threadResolved', 'criteriaOutcomes'].includes(key), `${scenario.id}: state.${key}`);
+      assert.ok(['variationState', 'designDocStatus', 'openQuestions', 'journalKinds', 'journalLastKind', 'threadResolved', 'criteriaOutcomes', 'standardChecks', 'afterAuthorize'].includes(key), `${scenario.id}: state.${key}`);
     }
     for (const pattern of [scenario.expect.finalTextMatches, scenario.expect.finalTextNotMatches]) {
       if (pattern !== undefined) assert.doesNotThrow(() => new RegExp(pattern, 'i'));
     }
   }
+});
+test('checkState finds standard checks by fact and reads the PR criterion after the person authorizes', async () => {
+  const draft = { id: 'b1', version: 1, criteria: [
+    { key: 'AC-1', authorKind: 'AGENT', requirement: { kind: 'attest' } },
+    { key: 'AC-2', authorKind: 'SYSTEM', requirement: { kind: 'fact', fact: 'scm.pr_merged' } },
+    { key: 'AC-3', authorKind: 'SYSTEM', requirement: { kind: 'fact', fact: 'ci.checks_passed' } },
+  ] };
+  const calls = [];
+  let authorized = false;
+  const invoke = async (name, args) => {
+    calls.push(name);
+    if (name === 'list_acceptance_criteria') return authorized
+      ? { draft: null, authorized: draft, criteria: [{ key: 'AC-2', outcome: calls.filter((n) => n === name).length > 2 ? 'PENDING' : undefined, reason: 'no-evidence' }] }
+      : { draft, authorized: null, criteria: [] };
+    if (name === 'recheck_verification') return { queued: true };
+    if (name === 'get_design_doc') return { variations: [] };
+    throw new Error(`unexpected ${name} ${JSON.stringify(args)}`);
+  };
+  const authorize = async (baseline) => { assert.equal(baseline.id, 'b1'); authorized = true; };
+  const context = { invoke, designDocId: 'doc-1', authorize, sleep: async () => {}, timeoutMs: 10000 };
+  assert.deepEqual(await checkState({ standardChecks: ['scm.pr_merged', 'ci.checks_passed'], afterAuthorize: { 'scm.pr_merged': 'PENDING' } }, context), []);
+  assert.ok(calls.includes('recheck_verification'));
+
+  authorized = false;
+  const failures = await checkState({ standardChecks: ['deploy.succeeded'], afterAuthorize: { 'scm.pr_merged': 'SATISFIED' } }, { ...context, timeoutMs: 0 });
+  assert.equal(failures.length, 2, failures.join('\n'));
+  assert.match(failures[0], /no standard check for deploy\.succeeded.*scm\.pr_merged, ci\.checks_passed/);
+  assert.match(failures[1], /scm\.pr_merged \(AC-2\) expected SATISFIED after authorization/);
+  assert.match((await checkState({ afterAuthorize: { 'scm.pr_merged': 'PENDING' } }, { invoke, designDocId: 'doc-1' }))[0], /no draft criteria|needs the person/);
 });

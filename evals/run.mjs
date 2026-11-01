@@ -187,7 +187,9 @@ export async function mcpCall(endpoint, pat, name, args) {
 }
 
 // Compares server state after a run with scenario.expect.state. Every check reads through MCP, so it sees what the next agent would see.
-export async function checkState(expected, { invoke, designDocId }) {
+export async function checkState(expected, {
+  invoke, designDocId, authorize, sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), timeoutMs = 30000,
+}) {
   const failures = [];
   const doc = await invoke('get_design_doc', { id: designDocId });
   for (const [typeKey, state] of Object.entries(expected.variationState ?? {})) {
@@ -226,6 +228,37 @@ export async function checkState(expected, { invoke, designDocId }) {
     for (const [key, outcome] of Object.entries(expected.criteriaOutcomes)) {
       const actual = criteria.find((criterion) => criterion.key === key)?.outcome ?? 'absent';
       if (actual !== outcome) failures.push(`State: criterion ${key} expected ${outcome}, got ${actual}`);
+    }
+  }
+  // Standard checks are the criteria Archdocs adds itself (author kind SYSTEM), named here by fact.
+  if (expected.standardChecks !== undefined || expected.afterAuthorize !== undefined) {
+    const listed = await invoke('list_acceptance_criteria', { designDocId });
+    const baseline = listed.draft ?? listed.authorized;
+    const system = (baseline?.criteria ?? []).filter((criterion) => criterion.authorKind === 'SYSTEM');
+    const keyFor = (fact) => system.find((criterion) => criterion.requirement?.fact === fact)?.key;
+    for (const fact of expected.standardChecks ?? []) {
+      if (!keyFor(fact)) failures.push(`State: no standard check for ${fact} (standard checks: ${system.map((c) => c.requirement?.fact).join(', ') || 'none'})`);
+    }
+    if (expected.afterAuthorize !== undefined) {
+      // Agents never authorize criteria, so the person authorizes over REST, then a recheck is queued.
+      if (!listed.draft) failures.push('State: no draft criteria to authorize');
+      else if (!authorize) failures.push('State: afterAuthorize needs the person to authorize the draft');
+      else {
+        await authorize(listed.draft);
+        await invoke('recheck_verification', { designDocId });
+        for (const [fact, outcome] of Object.entries(expected.afterAuthorize)) {
+          const key = keyFor(fact);
+          if (!key) { failures.push(`State: no standard check for ${fact} to evaluate`); continue; }
+          let last;
+          for (let waited = 0; ; waited += 2000) {
+            const { criteria = [] } = await invoke('list_acceptance_criteria', { designDocId });
+            last = criteria.find((criterion) => criterion.key === key);
+            if (last?.outcome === outcome || waited >= timeoutMs) break;
+            await sleep(2000);
+          }
+          if (last?.outcome !== outcome) failures.push(`State: ${fact} (${key}) expected ${outcome} after authorization, got ${last?.outcome ?? 'absent'}${last?.reason ? ` (${last.reason})` : ''}`);
+        }
+      }
     }
   }
   return failures;
@@ -454,7 +487,14 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     if (result.code !== 0) grade.failures.push(`Claude exited with ${result.code ?? result.signal}: ${redact(result.stderr, secrets).trim()}`);
     if (scenario.expect.state) {
       if (!vars.designDocId) grade.failures.push('State checks need a fixture that creates a design doc');
-      else grade.failures.push(...await checkState(scenario.expect.state, { invoke: (name, args) => call(endpoint, pat, name, args), designDocId: vars.designDocId }));
+      else grade.failures.push(...await checkState(scenario.expect.state, {
+        invoke: (name, args) => call(endpoint, pat, name, args), designDocId: vars.designDocId,
+        authorize: async (draft) => {
+          const client = restClient({ ...resetOptions(scenario, env), fetchImpl });
+          await client.login();
+          await client.request(`/design-docs/${encodeURIComponent(vars.designDocId)}/criteria/baselines/${encodeURIComponent(draft.id)}/authorize`, { method: 'POST', body: { expectedVersion: draft.version } });
+        },
+      }));
     }
     grade.pass = grade.failures.length === 0;
     return grade;

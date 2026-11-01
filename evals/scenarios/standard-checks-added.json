@@ -1,0 +1,16 @@
+{
+  "id": "standard-checks-added",
+  "org": "full",
+  "setup": "design-doc-with-spec-and-plan",
+  "prompt": "On {{designDocNumber}}, add two acceptance criteria as manual checks that you or I can confirm: \"The Sequencer sends SMS through the provider adapter\" and \"The Delivery Worker records SMS delivery status\". I opened https://github.com/example/cadence/pull/43 for this work; link it to the doc.",
+  "expect": {
+    "mustSucceed": ["propose_acceptance_criteria", "link_pull_request"],
+    "maxSuccessfulCalls": { "propose_acceptance_criteria": 1 },
+    "mustNotCall": ["mark_design_doc_shipped"],
+    "resultMatches": [{ "tool": "propose_acceptance_criteria", "pattern": "standardChecksAdded\\\"\\s*:\\s*\\[\\s*\\{" }],
+    "state": {
+      "standardChecks": ["scm.pr_merged", "ci.checks_passed"],
+      "afterAuthorize": { "scm.pr_merged": "PENDING" }
+    }
+  }
+}
