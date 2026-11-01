@@ -302,8 +302,9 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     const baseline = await invoke('propose_acceptance_criteria', {
       designDocId: doc.id, reason: 'Eval fixture',
       criteria: [
-        { key: 'AC-1', title: 'Sequencer SMS unit tests pass', required: true, requirement: attest('ac-1', 'Unit tests for the Sequencer SMS path pass locally.', 'HUMAN_OR_AGENT') },
-        { key: 'AC-2', title: 'Product owner confirmed the SMS copy', required: true, requirement: attest('ac-2', 'Product owner confirmed the SMS copy.', 'HUMAN') },
+        // The server assigns keys in order (AC-1, AC-2); a key in the request must name an existing criterion.
+        { title: 'Sequencer SMS unit tests pass', required: true, requirement: attest('ac-1', 'Unit tests for the Sequencer SMS path pass locally.', 'HUMAN_OR_AGENT') },
+        { title: 'Product owner confirmed the SMS copy', required: true, requirement: attest('ac-2', 'Product owner confirmed the SMS copy.', 'HUMAN') },
       ],
     });
     if (!baseline.id || !baseline.version) throw new Error('propose_acceptance_criteria did not return a baseline id and version');

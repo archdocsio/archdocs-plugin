@@ -4,12 +4,29 @@
   "setup": "with-review-thread",
   "prompt": "A reviewer left comments on {{designDocNumber}}'s spec. Handle them.",
   "expect": {
-    "mustSucceed": ["write_design_doc_variation", "reply_to_comment_thread"],
-    "argMatches": [
-      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^spec$" },
-      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Rr]eject|[Ff]ail|[Ii]nvalid" }
+    "mustSucceed": [
+      "reply_to_comment_thread",
+      "add_design_doc_question"
     ],
-    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
-    "state": { "threadResolved": true }
+    "argMatches": [
+      {
+        "tool": "add_design_doc_question",
+        "path": "text",
+        "pattern": "[Rr]eject|[Ff]ail|[Ii]nvalid"
+      },
+      {
+        "tool": "reply_to_comment_thread",
+        "path": "content",
+        "pattern": "Qd|question|[Rr]eject|[Ff]ail"
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "create_design_doc",
+      "resolve_comment_thread"
+    ],
+    "state": {
+      "openQuestions": 1
+    }
   }
 }

@@ -367,11 +367,13 @@ test('with-authorized-criteria proposes an agent-permitted and a human-only atte
   const proposed = calls.find((call) => call.name === 'propose_acceptance_criteria').args;
   assert.equal(proposed.designDocId, 'fixture');
   const [agent, human] = proposed.criteria;
-  assert.equal(agent.key, 'AC-1');
+  assert.equal(agent.key, undefined);
+  assert.equal(agent.title, 'Sequencer SMS unit tests pass');
   assert.equal(agent.requirement.kind, 'attest');
   assert.equal(agent.requirement.by, 'HUMAN_OR_AGENT');
   assert.equal(agent.requirement.statementHash, createHash('sha256').update(agent.requirement.statement).digest('hex'));
-  assert.equal(human.key, 'AC-2');
+  assert.equal(human.key, undefined);
+  assert.equal(human.title, 'Product owner confirmed the SMS copy');
   assert.equal(human.requirement.by, 'HUMAN');
   const authorize = requests.find((request) => request.route === '/design-docs/fixture/criteria/baselines/baseline-1/authorize');
   assert.equal(authorize.method, 'POST');
