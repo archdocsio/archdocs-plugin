@@ -33,6 +33,7 @@
     "get_subgraph",
     "get_task_context",
     "get_verification_status",
+    "import_design_doc",
     "import_plan_file",
     "link_design_doc_mentions",
     "link_linear_issue",

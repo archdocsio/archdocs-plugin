@@ -13,6 +13,8 @@ Design docs describe one change. The spec says why and what, the plan says how, 
 
 ADRs record one decision that will outlive any single change ("new services use Postgres", "we don't call Salesforce synchronously").
 
+Bringing documents that already exist elsewhere into Archdocs (RFCs in a repository, Notion pages, decision records) is a different job from writing a new one: those are history and must keep their original status, date and author. Use `importing-design-docs` for that, not `create_design_doc`.
+
 ## Pick one
 
 Ask which question the user needs answered later:

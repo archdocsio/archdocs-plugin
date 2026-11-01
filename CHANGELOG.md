@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.0
+
+- New skill `importing-design-docs` and command `/archdocs:import-docs`: bring a team's existing design docs, RFCs and decision records into Archdocs as history. The agent classifies each file (spec, plan, RFC, decision record, not a document), pairs specs with plans, reads status, date, author and identifier out of frontmatter, export metadata or git, shows the person one mapping table with every guess marked, and only after approval imports each document with `import_design_doc` (or `create_adr` with `historical: true`). Imported documents land in their final status (SHIPPED by default) with their original date, author, identifier and a link back, skip review and notifications, and re-import by the same identifier updates instead of duplicating. Team plan and above; the server refuses on Free.
+- `using-design-docs` points at the new skill when the user wants to import, migrate or port existing documents.
+
 ## 0.5.0
 
 - `working-under-a-design-doc` captures a finding that matters beyond the doc (an edge case, a wrong assumption, a failure mode) with `propose_knowledge_item` and the journal entry's `entryNumber`, plus a `statement`, `kind`, `codeLocations` and, when it contradicts an existing item, `challengesItemId`. Later changes on the same paths get it from `get_task_context`. The capture stays proposed until a person accepts it and is never an approved rule. On an older server that rejects `entryNumber`, the finding stays in the journal.
