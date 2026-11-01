@@ -17,7 +17,7 @@
       {
         "tool": "reply_to_comment_thread",
         "path": "content",
-        "pattern": "Qd|question|[Rr]eject|[Ff]ail"
+        "pattern": "Q[0-9]|question|[Rr]eject|[Ff]ail"
       }
     ],
     "mustNotCall": [
