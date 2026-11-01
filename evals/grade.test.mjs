@@ -198,3 +198,14 @@ test('results correlate by id across several user events and ignore unrelated id
   assert.deepEqual(gradeTranscript(transcript, { mustSucceed: ['link_pull_request'] }), { pass: true, failures: [] });
   assert.equal(gradeTranscript(transcript, { mustSucceed: ['mark_variation_ready'] }).pass, false);
 });
+test('maxSuccessfulCalls counts only successful calls', () => {
+  const expect = { maxSuccessfulCalls: { propose_acceptance_criteria: 1 } };
+  const call = (id, isError) => [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id, name: 'mcp__archdocs-eval__propose_acceptance_criteria', input: {} }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, is_error: isError, content: 'x' }] } },
+  ];
+  assert.equal(gradeTranscript([...call('a', true), ...call('b', false)], expect).pass, true);
+  const twice = gradeTranscript([...call('a', false), ...call('b', false)], expect);
+  assert.equal(twice.pass, false);
+  assert.match(twice.failures[0], /propose_acceptance_criteria succeeded 2 times, expected at most 1/);
+});

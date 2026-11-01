@@ -35,6 +35,11 @@ export function gradeTranscript(events, expect) {
   for (const tool of expect.mustNotCall ?? []) {
     if (calls.some((call) => call.name === tool)) failures.push(`Forbidden tool called: ${tool}`);
   }
+  // Refused calls do not count: they measure argument mistakes, not extra work the agent had to do.
+  for (const [tool, max] of Object.entries(expect.maxSuccessfulCalls ?? {})) {
+    const count = calls.filter((call) => call.name === tool && call.ok).length;
+    if (count > max) failures.push(`${tool} succeeded ${count} times, expected at most ${max}`);
+  }
   for (const tool of expect.mustSucceed ?? []) {
     if (!calls.some((call) => call.name === tool && call.ok)) {
       const lastError = calls.filter((call) => call.name === tool && call.error !== null).at(-1)?.error;
