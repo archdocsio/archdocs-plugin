@@ -4,37 +4,13 @@
   "setup": "design-doc-with-spec-and-plan",
   "prompt": "PR https://github.com/example/cadence/pull/42 merged and it's live in prod. It shipped as planned, except that delivery events are batched every 5 seconds instead of streamed, because the stream client dropped events under load. The delivery-receipt webhook wasn't built; it's deferred to next quarter. Close out {{designDocNumber}}.",
   "expect": {
-    "mustCall": [
-      "write_design_doc_variation",
-      "mark_variation_ready",
-      "mark_design_doc_shipped"
-    ],
-    "order": [
-      [
-        "write_design_doc_variation",
-        "mark_design_doc_shipped"
-      ],
-      [
-        "mark_variation_ready",
-        "mark_design_doc_shipped"
-      ]
-    ],
+    "mustSucceed": ["write_design_doc_variation", "mark_design_doc_shipped"],
+    "mustNotCall": ["mark_variation_ready", "request_design_doc_review"],
+    "order": [["write_design_doc_variation", "mark_design_doc_shipped"]],
     "argMatches": [
-      {
-        "tool": "write_design_doc_variation",
-        "path": "variation",
-        "pattern": "^evidence$"
-      },
-      {
-        "tool": "write_design_doc_variation",
-        "path": "content",
-        "pattern": "[Bb]atch"
-      },
-      {
-        "tool": "mark_variation_ready",
-        "path": "variation",
-        "pattern": "^evidence$"
-      }
-    ]
+      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" },
+      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Bb]atch" }
+    ],
+    "state": { "designDocStatus": "SHIPPED" }
   }
 }

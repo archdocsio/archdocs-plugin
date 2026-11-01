@@ -1,0 +1,13 @@
+{
+  "id": "agent-evidence-human-pending",
+  "org": "full",
+  "setup": "with-authorized-criteria",
+  "prompt": "I ran node --test for {{designDocNumber}}'s Sequencer SMS path just now and it passes. Record what you can on the design doc.",
+  "expect": {
+    "mustSucceed": ["submit_evidence"],
+    "argMatches": [{ "tool": "submit_evidence", "path": "criterionKey", "pattern": "^AC-1$" }],
+    "argMustNotMatch": [{ "tool": "submit_evidence", "path": "criterionKey", "pattern": "^AC-2$" }],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc", "propose_acceptance_criteria"],
+    "finalTextMatches": "AC-2|product owner|person|human"
+  }
+}

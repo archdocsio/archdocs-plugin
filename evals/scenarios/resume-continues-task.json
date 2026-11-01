@@ -1,0 +1,13 @@
+{
+  "id": "resume-continues-task",
+  "org": "full",
+  "setup": "with-journal-entries",
+  "prompt": "Continue {{designDocNumber}}.",
+  "expect": {
+    "mustSucceed": ["get_journal_handoff"],
+    "order": [["get_journal_handoff", "add_journal_entry"], ["get_journal_handoff", "write_design_doc_variation"]],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "argMustNotMatch": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$|work-log|journal" }],
+    "finalTextMatches": "Delivery Worker|batch|stream"
+  }
+}

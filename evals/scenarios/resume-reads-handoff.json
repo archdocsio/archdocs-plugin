@@ -4,7 +4,7 @@
   "setup": "with-journal-entries",
   "prompt": "Pick up {{designDocNumber}} where the last session left it. What's the state and what's next?",
   "expect": {
-    "mustCall": ["get_journal_handoff"],
+    "mustSucceed": ["get_journal_handoff"],
     "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
     "order": [
       ["get_journal_handoff|list_journal_entries", "add_journal_entry"],

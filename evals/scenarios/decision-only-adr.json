@@ -1,5 +1,5 @@
 {
   "id": "decision-only-adr",
   "prompt": "We decided all new services use Cadence Postgres instead of adding new data stores. Record that in Archdocs.",
-  "expect": { "mustCall": ["create_adr"], "mustNotCall": ["create_design_doc"] }
+  "expect": { "mustSucceed": ["create_adr"], "mustNotCall": ["create_design_doc"] }
 }

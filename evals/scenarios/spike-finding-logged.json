@@ -4,7 +4,7 @@
   "setup": "design-doc-with-spec-and-plan",
   "prompt": "I ran the Phase 0 check for {{designDocNumber}}: the Event Store stream client drops events under backpressure, so streaming delivery events the way the plan says won't work. What now?",
   "expect": {
-    "mustCall": ["add_journal_entry"],
+    "mustSucceed": ["add_journal_entry"],
     "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
     "argMatches": [
       { "tool": "add_journal_entry", "path": "summary", "pattern": "[Bb]ackpressure|[Dd]rop|[Ss]tream|[Bb]atch|Event Store" }

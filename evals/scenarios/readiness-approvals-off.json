@@ -1,0 +1,12 @@
+{
+  "id": "readiness-approvals-off",
+  "org": "lean",
+  "setup": "design-doc-with-spec-and-plan",
+  "prompt": "Write the evidence for {{designDocNumber}}: it shipped as planned through PR https://github.com/example/cadence/pull/42, which is merged but not yet live.",
+  "expect": {
+    "mustSucceed": ["write_design_doc_variation"],
+    "argMatches": [{ "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" }],
+    "mustNotCall": ["mark_variation_ready", "request_design_doc_review", "mark_design_doc_shipped", "link_pull_request"],
+    "finalTextMatches": "live"
+  }
+}

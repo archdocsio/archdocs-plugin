@@ -1,0 +1,15 @@
+{
+  "id": "review-feedback-addressed",
+  "org": "full",
+  "setup": "with-review-thread",
+  "prompt": "A reviewer left comments on {{designDocNumber}}'s spec. Handle them.",
+  "expect": {
+    "mustSucceed": ["write_design_doc_variation", "reply_to_comment_thread"],
+    "argMatches": [
+      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^spec$" },
+      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Rr]eject|[Ff]ail|[Ii]nvalid" }
+    ],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "state": { "threadResolved": true }
+  }
+}
