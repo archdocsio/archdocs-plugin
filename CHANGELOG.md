@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.2
+
+- `using-design-docs` calls `get_task_context` before recommending how any catalogued system should work, including in a discussion or a "should we build X" answer, not only before planning or implementing code. Its description now triggers on those questions too. When `list_design_docs`, `search` or the context returns a design doc whose title covers the subsystem under discussion, the agent opens it with `get_design_doc` before proposing anything.
+- `using-design-docs` reads the new coverage notes `no-text-matches` and `no-record-links-these-paths` as a thin result and searches design docs by the subsystem's name before relying on it.
+- Evals: `with-subsystem-design` fixture (a Delivery Worker retry design that mentions the Cadence objects) and two scenarios: `discussion-reads-standing-design` (a recommendation question with nothing to build) and `should-we-build-reads-standing-design` (a "should we build X" proposal that contradicts the standing design without using its words).
+
 ## 0.7.1
 
 - `closing-out-a-design-doc` relays a ship with an exception: when a person with `verification:manage` tells the agent to ship anyway, it passes `exception: { reason }` and their words in `decision.statement`, after telling them which criteria the exception covers. Archdocs fills in the criteria results current at the call. Needs the Archdocs server from 2026-11-01 or later.

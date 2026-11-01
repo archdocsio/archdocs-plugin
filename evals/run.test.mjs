@@ -224,6 +224,25 @@ test('setup creates fresh spec and plan with briefs, ready states and open quest
     designDocId: 'id-1', text: 'Twilio or MessageBird for SMS?', context: 'The SMS provider has not been decided.', variation: 'spec', options: [{ label: 'Twilio' }, { label: 'MessageBird' }],
   });
 });
+test('with-subsystem-design setup writes the Delivery Worker retry design with catalog links and marks it ready', async () => {
+  const calls = [];
+  const call = async (endpoint, pat, name, args) => {
+    calls.push({ name, args });
+    if (name === 'list_design_doc_types') return { features: { approvals: true }, types: ['spec', 'plan'].map((key) => ({ key, enabled: true, approvalFor: [], briefFields: [{ key: 'summary', computed: false }] })) };
+    if (name === 'create_design_doc') return { id: 'retries', displayNumber: 'DD-0001' };
+    return {};
+  };
+  assert.deepEqual(await setupScenario({ setup: 'with-subsystem-design' }, { call }), { designDocNumber: 'DD-0001', designDocId: 'retries' });
+  assert.equal(calls.find((call) => call.name === 'create_design_doc').args.title, 'Delivery Worker retries: requeue with backoff and a dead-letter queue');
+  const writes = calls.filter((call) => call.name === 'write_design_doc_variation');
+  assert.equal(writes.length, 2);
+  for (const { args } of writes) {
+    assert.equal(args.autoLink, true);
+    assert.match(args.content, /Delivery Worker/);
+  }
+  assert.match(writes[0].args.content, /never retries in place/);
+  assert.equal(calls.filter((call) => call.name === 'mark_variation_ready').length, 2);
+});
 test('approved-plan requires human approval or accepts an explicit doc number without creating a doc', async () => {
   await assert.rejects(setupScenario({ setup: 'approved-plan' }, { env: {} }), /needs a human approval step/);
   assert.deepEqual(await setupScenario({ setup: 'approved-plan' }, { env: { ARCHDOCS_EVAL_APPROVED_DD: 'DD-0004' } }), { designDocNumber: 'DD-0004' });
@@ -582,10 +601,10 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all twenty-eight scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all thirty-one scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 28);
+  assert.equal(files.length, 31);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
@@ -593,7 +612,7 @@ test('all twenty-eight scenario files have matching ids and use known tools and 
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
     assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file',
-      'with-failing-test-repo', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria'].includes(scenario.setup ?? 'none'));
+      'with-failing-test-repo', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria', 'with-subsystem-design'].includes(scenario.setup ?? 'none'));
     // Scenario tools are Claude Code tools, not MCP tools; they are granted on top of Read.
     for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
     const builtIn = new Set(scenario.tools ?? []);

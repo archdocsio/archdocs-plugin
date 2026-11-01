@@ -145,3 +145,18 @@ The agent is asked for two manual checks and to link a PR, with no mention of PR
 What the local setup cannot show: the local API has no GitHub App, so linked PRs read state `UNKNOWN` and the collector skips GitHub. A merged PR therefore never reaches `SATISFIED` here, and the open-PR case reads `no-evidence` rather than `not-merged` (`not-merged` does appear on the CI criterion). Measuring `SATISFIED` on a merged fixture PR needs a GitHub App connected to the local API.
 
 One expectation changed after the first round. It used `maxCalls: { propose_acceptance_criteria: 1 }` and failed 0/3: every agent first passed an invented `key` (for example `sequencer-sms-adapter`), the server refused it with "Unknown criterion key", and the agent retried without it. That is a separate, older problem with how `key` is described (it must name an existing criterion), not extra work caused by missing PR criteria, so the scenario now uses `maxSuccessfulCalls`, which counts only successful calls. The number above is from the second round.
+
+## Results for the discussion trigger revision (2026-11-01)
+
+Local API on port 4500, the full org on a BUSINESS grant with the Work Log, `--setting-sources project`, 3 runs per mode. "Old server" is monorepo origin/master bb01ecab (server instruction says "Before planning a change"). "New server" is monorepo branch `fix/context-retrieval` b6d5d8fe (instruction also covers advising in discussion; `get_task_context` adds an OR-combined key-phrase text query and the `no-text-matches` and `no-record-links-these-paths` notes). Plugin 0.5.0 is origin/main 196ec41 with this revision's eval files copied in; plugin 0.5.1 is this revision, measured before it was rebased onto 0.7.1 and released as 0.7.2.
+
+| Scenario | Server | Without plugin | Plugin 0.5.0 | Plugin 0.5.1 |
+| --- | --- | --- | --- | --- |
+| discussion-reads-standing-design (new, full) | old | 3/3 | 3/3 | 3/3 |
+| discussion-reads-standing-design | new | 3/3 | not run | 3/3 |
+| should-we-build-reads-standing-design (new, full) | old | 2/3 | 2/3 | 3/3 |
+| should-we-build-reads-standing-design | new | 1/3 | not run | 3/3 |
+
+`discussion-reads-standing-design` names the Delivery Worker and asks how retries should work, so every configuration called `get_task_context` and then found the fixture through `search` or `list_design_docs`. It does not reproduce the 2026-11-01 miss and stays as a regression guard. What changed between servers is where the fixture came from: on the old server `get_task_context` never returned it (0 of 6 runs); on the new server it was in `foundByText` in 6 of 6, because the extracted phrase "delivery worker" matches where the whole sentence could not.
+
+`should-we-build-reads-standing-design` is the closer reproduction: a "should we build X" proposal ("Resend now" retries the provider three times in a row) that contradicts the standing design without using its title's words. Its task sentences share no phrase with the fixture, so `get_task_context` returned nothing relevant on either server; the new server says so with `no-text-matches`. Failing runs searched for "Cadence retry", opened canvas docs and objects, and answered without reading the design doc. With 0.5.1 the agent loaded `using-design-docs` in 5 of 6 runs (0.5.0's description never triggered it on this prompt), and every run reached `get_design_doc` on the fixture, four of them through `list_design_docs` q "retry" as the skill now says to do on a thin result.
