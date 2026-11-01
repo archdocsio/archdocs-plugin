@@ -166,6 +166,29 @@ test('resultMatches reads string and array result content of successful calls on
   assert.equal(grade.pass, false);
   assert.match(grade.failures[0], /No successful Bash result matches \/# fail 1\//);
 });
+test('argMatches and order with ok: true consider only calls that succeeded', () => {
+  const transcript = withResults(
+    ['write_design_doc_variation', { variation: 'evidence' }, { ok: false, text: 'brief is required' }],
+    ['write_design_doc_variation', { variation: 'plan' }, { ok: true, text: '{}' }],
+    ['mark_design_doc_shipped', {}, { ok: true, text: '{}' }],
+  );
+  const evidence = { tool: 'write_design_doc_variation', path: 'variation', pattern: '^evidence$' };
+  assert.equal(gradeTranscript(transcript, { argMatches: [evidence] }).pass, true);
+  const strict = gradeTranscript(transcript, { argMatches: [{ ...evidence, ok: true }] });
+  assert.equal(strict.pass, false);
+  assert.match(strict.failures[0], /No successful write_design_doc_variation input at variation matches/);
+  // The evidence write failed, so with ok: true it does not count as happening before the ship call.
+  assert.equal(gradeTranscript(transcript, { order: [['write_design_doc_variation', 'mark_design_doc_shipped']] }).pass, true);
+  assert.equal(gradeTranscript(transcript, { order: [{ before: 'write_design_doc_variation', after: 'mark_design_doc_shipped', ok: true }] }).pass, true);
+  const onlyEvidence = withResults(
+    ['write_design_doc_variation', { variation: 'evidence' }, { ok: false, text: 'brief is required' }],
+    ['mark_design_doc_shipped', {}, { ok: true, text: '{}' }],
+  );
+  assert.equal(gradeTranscript(onlyEvidence, { order: [['write_design_doc_variation', 'mark_design_doc_shipped']] }).pass, true);
+  const strictOrder = gradeTranscript(onlyEvidence, { order: [{ before: 'write_design_doc_variation', after: 'mark_design_doc_shipped', ok: true }] });
+  assert.equal(strictOrder.pass, false);
+  assert.match(strictOrder.failures[0], /Expected a successful write_design_doc_variation before first mark_design_doc_shipped/);
+});
 test('results correlate by id across several user events and ignore unrelated ids', () => {
   const transcript = [
     { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'mark_variation_ready', input: {} }, { type: 'tool_use', id: 'b', name: 'link_pull_request', input: {} }] } },

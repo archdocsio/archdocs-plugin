@@ -13,17 +13,20 @@
       {
         "tool": "write_design_doc_variation",
         "path": "variation",
-        "pattern": "^evidence$"
+        "pattern": "^evidence$",
+        "ok": true
       },
       {
         "tool": "write_design_doc_variation",
         "path": "content",
-        "pattern": "[Bb]atch"
+        "pattern": "[Bb]atch",
+        "ok": true
       },
       {
         "tool": "mark_variation_ready",
         "path": "variation",
-        "pattern": "^evidence$"
+        "pattern": "^evidence$",
+        "ok": true
       }
     ],
     "mustNotCall": [

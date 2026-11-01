@@ -57,19 +57,21 @@ export function gradeTranscript(events, expect) {
       failures.push(`No successful ${tool} result matches /${pattern}/`);
     }
   }
-  for (const [a, b] of expect.order ?? []) {
+  // An order entry is [before, after] or { before, after, ok }; with ok the earlier call must have succeeded.
+  for (const entry of expect.order ?? []) {
+    const { before: a, after: b, ok = false } = Array.isArray(entry) ? { before: entry[0], after: entry[1] } : entry;
     const firstB = calls.findIndex((call) => matches(call.name, b));
-    if (firstB >= 0 && !calls.slice(0, firstB).some((call) => matches(call.name, a))) {
-      failures.push(`Expected ${a} before first ${b}`);
+    if (firstB >= 0 && !calls.slice(0, firstB).some((call) => matches(call.name, a) && (!ok || call.ok))) {
+      failures.push(`Expected ${ok ? 'a successful ' : ''}${a} before first ${b}`);
     }
   }
-  for (const { tool, path, pattern } of expect.argMatches ?? []) {
+  for (const { tool, path, pattern, ok = false } of expect.argMatches ?? []) {
     const regex = new RegExp(pattern);
     if (!calls.some((call) => {
-      if (call.name !== tool) return false;
+      if (call.name !== tool || (ok && !call.ok)) return false;
       const value = path.split('.').reduce((value, key) => value?.[key], call.input);
       return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
-    })) failures.push(`No ${tool} input at ${path} matches /${pattern}/`);
+    })) failures.push(`No ${ok ? 'successful ' : ''}${tool} input at ${path} matches /${pattern}/`);
   }
   for (const { tool, path, pattern } of expect.argMustNotMatch ?? []) {
     const regex = new RegExp(pattern);

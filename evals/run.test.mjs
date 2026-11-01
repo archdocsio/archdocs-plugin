@@ -417,6 +417,25 @@ test('runClaude sends prompt on stdin without a shell and retries Windows ENOENT
   assert.deepEqual(seen, ['claude', 'claude.exe']);
   assert.equal(result.stdout, '[REDACTED]');
 });
+test('runClaude keeps eval credentials out of the agent process environment', async () => {
+  const previous = { PAT: process.env.ARCHDOCS_EVAL_PAT, PW: process.env.ARCHDOCS_EVAL_PASSWORD_FULL };
+  process.env.ARCHDOCS_EVAL_PAT = 'test-credential';
+  process.env.ARCHDOCS_EVAL_PASSWORD_FULL = 'secret-password';
+  try {
+    let seenEnv;
+    const spawnProcess = fakeSpawn(({ child, options }) => {
+      seenEnv = options.env;
+      child.stdout.end('{"type":"result"}\n'); child.stderr.end(); child.emit('close', 0, null);
+    });
+    await runClaude(['-p'], 'Prompt', { cwd: process.cwd(), spawnProcess, platform: 'linux' });
+    assert.ok(seenEnv, 'spawn received an explicit env');
+    assert.equal(Object.keys(seenEnv).some((key) => key.startsWith('ARCHDOCS_EVAL_')), false);
+    assert.equal(seenEnv.PATH ?? seenEnv.Path, process.env.PATH ?? process.env.Path);
+  } finally {
+    if (previous.PAT === undefined) delete process.env.ARCHDOCS_EVAL_PAT; else process.env.ARCHDOCS_EVAL_PAT = previous.PAT;
+    if (previous.PW === undefined) delete process.env.ARCHDOCS_EVAL_PASSWORD_FULL; else process.env.ARCHDOCS_EVAL_PASSWORD_FULL = previous.PW;
+  }
+});
 test('runClaude does not retry other spawn failures or non-Windows ENOENT', async () => {
   for (const [platform, code] of [['win32', 'EACCES'], ['linux', 'ENOENT']]) {
     let count = 0;
@@ -579,7 +598,7 @@ test('all twenty-seven scenario files have matching ids and use known tools and 
     for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
     const builtIn = new Set(scenario.tools ?? []);
     const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? []), ...(scenario.expect.expectFailure ?? []), ...(scenario.expect.resultMatches ?? [])];
-    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flat(), ...argExpectations.map((item) => item.tool)]) {
+    for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flatMap((entry) => (Array.isArray(entry) ? entry : [entry.before, entry.after])), ...argExpectations.map((item) => item.tool)]) {
       for (const alternative of tool.split('|')) assert.ok(tools.has(alternative) || builtIn.has(alternative), `${scenario.id}: ${alternative}`);
     }
     for (const { pattern } of argExpectations) assert.doesNotThrow(() => new RegExp(pattern));
