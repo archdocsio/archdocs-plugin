@@ -66,6 +66,7 @@
     "patch_doc",
     "propose_acceptance_criteria",
     "propose_linear_issues",
+    "recheck_verification",
     "record_architecture_change",
     "release_doc_from_object",
     "reply_to_comment_thread",
