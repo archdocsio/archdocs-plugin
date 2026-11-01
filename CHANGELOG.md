@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- `working-under-a-design-doc` and `writing-a-design-doc` link the item a tool returned (its `url`: a journal entry, question, comment thread, criterion or variation tab) instead of the whole design doc. `designDocUrl` is the doc link.
+
 ## 0.4.0
 
 - `working-under-a-design-doc` owns the work to its completion boundary: it reads the plan, handoff, context, criteria and verification status before acting, follows a push through CI and review, reruns and rechecks evidence a later commit made stale (`recheck_verification`), acts on acceptance criteria outcomes while working, submits agent-permitted evidence only for checks it ran, waits on asynchronous work through the host instead of polling, stops only for a verified outcome, a pending human decision, a concrete blocker or a user pause, and starts close-out itself when the boundary is reached.

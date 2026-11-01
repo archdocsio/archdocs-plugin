@@ -118,7 +118,7 @@ Reviewers leave comments on variations. When the user asks you to address review
 
 ## 14. Finish
 
-End by giving the user the design doc number, the list of open questions, and anything that needs a person: approvals, unresolved mentions, an amendment.
+End by giving the user the design doc number and link, the list of open questions, and anything that needs a person: approvals, unresolved mentions, an amendment. Link each question and variation by the `url` its tool returned, not the doc's.
 
 From the first task onward, including spikes and verification, use `working-under-a-design-doc`. It records findings, decisions, pull requests and handoffs on the doc as they happen.
 

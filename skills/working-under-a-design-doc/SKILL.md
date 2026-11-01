@@ -17,6 +17,10 @@ If there is no journal type, the record is a comment thread on the plan variatio
 
 Never write a journal with `write_design_doc_variation` or mark it ready. The server refuses both.
 
+## Linking what you recorded
+
+Results carry a `url` for the exact item they wrote or read: a journal entry, a question, a comment thread, an acceptance criterion or a variation tab. `designDocUrl` is the whole doc. When you tell the user about one item, link that item's `url` so they land on it, not at the top of the doc. Use `designDocUrl` only when you mean the doc itself.
+
 ## Before you act
 
 1. Find the design doc (`list_design_docs` by number or topic) and read it with `get_design_doc`: the plan, `workInProgress`, `deviations`, `acceptanceCriteria`, `canShip`, and each variation's `requiredApprovals`. `workGuidance` says where this doc wants records to go.
