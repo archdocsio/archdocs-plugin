@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0
+
+- `working-under-a-design-doc` captures a finding that matters beyond the doc (an edge case, a wrong assumption, a failure mode) with `propose_knowledge_item` and the journal entry's `entryNumber`, plus a `statement`, `kind`, `codeLocations` and, when it contradicts an existing item, `challengesItemId`. Later changes on the same paths get it from `get_task_context`. The capture stays proposed until a person accepts it and is never an approved rule. On an older server that rejects `entryNumber`, the finding stays in the journal.
+- `using-design-docs` explains two labels: "From a Work Log finding" (not an approved rule; account for it in the plan and test the failure it describes) and "Challenged by a later finding" (read the challenge; only a person resolves it).
+
 ## 0.4.2
 
 - `writing-a-design-doc` records a follow-up with `relate_design_doc` when a new design doc changes an earlier one: `UPDATES` when it changes a defined part, `REPLACES` when the earlier design no longer applies, with a summary of what changes and, for updates, what stays the same. The relationship is part of the spec, takes effect only when a person approves it, and is never inferred from dates or doc numbers.
