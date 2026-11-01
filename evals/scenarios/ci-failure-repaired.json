@@ -45,6 +45,7 @@
         "pattern": "^evidence$|work-log|journal"
       }
     ],
-    "finalTextMatches": "pass"
+    "finalTextMatches": "pass",
+    "finalTextNotMatches": "(does not|doesn't|didn't|not) pass"
   }
 }

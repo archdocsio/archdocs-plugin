@@ -4,7 +4,9 @@
   "setup": "design-doc-with-spec-and-plan",
   "prompt": "PR https://github.com/example/cadence/pull/42 merged, {{designDocNumber}} is done. It shipped as planned, except that delivery events are batched every 5 seconds instead of streamed, because the stream client dropped events under load. The delivery-receipt webhook wasn't built; it's deferred to next quarter.",
   "expect": {
-    "mustSucceed": ["write_design_doc_variation"],
+    "mustSucceed": [
+      "write_design_doc_variation"
+    ],
     "mustNotCall": [
       "link_pull_request",
       "set_planned_changes",
@@ -13,10 +15,25 @@
       "mark_design_doc_shipped"
     ],
     "argMatches": [
-      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" },
-      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Bb]atch" }
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$",
+        "ok": true
+      },
+      {
+        "tool": "write_design_doc_variation",
+        "path": "content",
+        "pattern": "[Bb]atch",
+        "ok": true
+      }
     ],
     "finalTextMatches": "ship",
-    "state": { "designDocStatus": "DRAFT" }
+    "state": {
+      "designDocStatus": "DRAFT",
+      "variationState": {
+        "evidence": "DRAFT"
+      }
+    }
   }
 }

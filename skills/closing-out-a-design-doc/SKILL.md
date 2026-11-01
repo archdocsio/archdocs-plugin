@@ -27,7 +27,7 @@ Read all of it before looking anywhere else. Each criterion outcome tells you wh
 
 ## 3. Fill the gaps
 
-Then use the pull requests, commits and code in front of you, and ask the user about anything you can't see. Note for each planned item whether it was done, done differently, or not done.
+Then use the pull requests, commits and code in front of you. Anything you can't see becomes an open item in the evidence, with a question to the user; keep going. Note for each planned item whether it was done, done differently, or not done.
 
 When `features.evidenceTracking` is on, fill in what's missing:
 
@@ -36,7 +36,7 @@ When `features.evidenceTracking` is on, fill in what's missing:
 
 When it's off, skip both tools and put the PR links in the evidence text.
 
-When the server offers acceptance criteria, call `list_acceptance_criteria`. For an attestation criterion the user confirms, call `submit_evidence` with a note. Then read `get_verification_status` and report it as Archdocs computed it. Never write that a criterion is verified or satisfied yourself; the evidence brief's `verification` field is computed. When Linear is connected, `list_linear_work` gives issue and project status and the pull requests correlated with them; a done issue is a lead for the evidence, not verification, and it never ships the doc. Skip both when the server doesn't offer the tools, and when a call refuses because the plan doesn't include the feature, carry on without mentioning it.
+When the server offers acceptance criteria, call `list_acceptance_criteria`. Call `submit_evidence` only for checks you ran yourself, on criteria whose statement allows agents; a person's confirmation goes into the evidence text as theirs, never into an attestation. Then read `get_verification_status` and report it as Archdocs computed it; after a `recheck_verification`, a criterion stays pending until its `evaluatedAt` moves. Never write that a criterion is verified or satisfied yourself; the evidence brief's `verification` field is computed. When Linear is connected, `list_linear_work` gives issue and project status and the pull requests correlated with them; a done issue is a lead for the evidence, not verification, and it never ships the doc. Skip both when the server doesn't offer the tools, and when a call refuses because the plan doesn't include the feature, carry on without mentioning it.
 
 ## 4. Write the evidence
 
@@ -76,7 +76,7 @@ Approvals, opening amendments, superseding and abandoning are done by people in 
 
 ## 8. Shipping
 
-Shipping means the change is live for its users, not merged. Call `mark_design_doc_shipped` only when the evidence variation is written and ready, and the user has said the change is live, in production, released or deployed.
+Shipping means the change is live for its users, not merged. Call `mark_design_doc_shipped` only when the evidence variation is written (and ready or approved where the organization requires it), and the user has said the change is live, in production, released or deployed.
 
 Before asking the user for anything, read `canShip`, each variation's `requiredApprovals` and `amendmentOpen`, and the open questions from `get_design_doc`, and finish everything that is yours to finish. Then name the one decision that remains, with what it unblocks.
 
@@ -84,7 +84,7 @@ Before asking the user for anything, read `canShip`, each variation's `requiredA
 
 If the ship call fails, read the reason and act on it:
 
-- A variation isn't ready or approved: mark it ready if it's yours to mark, or tell the user who has to approve it.
+- A variation isn't ready or approved: with `requiredApprovals` 0, mark it ready; above 0, request review and tell the user who has to approve it.
 - Open questions, with a request to acknowledge them: list the questions for the user, and pass `acknowledgeOpenQuestions: true` only after they agree to ship with them open.
 - Open questions that must be answered first (the organization blocks shipping on them): list them, and answer only the ones a person has decided.
 - An open amendment: tell the user it has to be finished in the app first.

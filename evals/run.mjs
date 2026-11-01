@@ -394,7 +394,9 @@ async function writeTestRepo(dir, { passing }) {
 export function runClaude(args, prompt, { cwd, secrets = [], spawnProcess = spawn, platform = process.platform } = {}) {
   function attempt(command) {
     return new Promise((resolve, reject) => {
-      const child = spawnProcess(command, args, { shell: false, cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+      // The agent under test may run shell commands; it must not inherit the eval PATs or passwords.
+      const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('ARCHDOCS_EVAL_')));
+      const child = spawnProcess(command, args, { shell: false, cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
       let stdout = '';
       let stderr = '';
       child.stdout.setEncoding('utf8');

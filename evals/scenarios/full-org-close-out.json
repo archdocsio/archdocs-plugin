@@ -4,18 +4,47 @@
   "setup": "with-open-question",
   "prompt": "PR https://github.com/example/cadence/pull/42 merged and it's live in prod. It shipped as planned, except that delivery events are batched every 5 seconds instead of streamed, because the stream client dropped events under load. The delivery-receipt webhook wasn't built; it's deferred to next quarter. Close out {{designDocNumber}}.",
   "expect": {
-    "mustSucceed": ["link_pull_request", "write_design_doc_variation", "mark_variation_ready"],
-    "mustNotCall": ["answer_design_doc_question"],
+    "mustSucceed": [
+      "link_pull_request",
+      "write_design_doc_variation",
+      "mark_variation_ready"
+    ],
+    "mustNotCall": [
+      "answer_design_doc_question"
+    ],
     "order": [
-      ["write_design_doc_variation", "mark_design_doc_shipped"],
-      ["list_design_doc_questions|get_design_doc", "mark_design_doc_shipped"]
+      [
+        "write_design_doc_variation",
+        "mark_design_doc_shipped"
+      ],
+      [
+        "list_design_doc_questions|get_design_doc",
+        "mark_design_doc_shipped"
+      ]
     ],
     "argMatches": [
-      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" },
-      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Bb]atch" },
-      { "tool": "mark_variation_ready", "path": "variation", "pattern": "^evidence$" }
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$",
+        "ok": true
+      },
+      {
+        "tool": "write_design_doc_variation",
+        "path": "content",
+        "pattern": "[Bb]atch",
+        "ok": true
+      },
+      {
+        "tool": "mark_variation_ready",
+        "path": "variation",
+        "pattern": "^evidence$",
+        "ok": true
+      }
     ],
     "finalTextMatches": "open question|Q1|Twilio",
-    "state": { "openQuestions": 1 }
+    "state": {
+      "openQuestions": 1
+    }
   }
 }
