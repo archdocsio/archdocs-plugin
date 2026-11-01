@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.2
+
+- `using-design-docs` reads the results of an in-client confirmation: when the person's client shows the server's prompt, a relayed decision comes back as `status: confirmed` (report it as done) or `status: not_recorded` (they chose not to; don't ask again). Clients without prompts still get `pending_confirmation` and the confirm link.
+
 ## 0.8.1
 
 - `using-design-docs` handles a decision the organization wants confirmed: when a tool returns `status: pending_confirmation`, the agent gives the person the `confirmUrl`, says nothing is recorded until they confirm it in Archdocs, and doesn't retry or report the decision as made.
