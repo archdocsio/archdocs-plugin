@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - `working-under-a-design-doc` owns the work to its completion boundary: it reads the plan, handoff, context, criteria and verification status before acting, follows a push through CI and review, reruns and rechecks evidence a later commit made stale (`recheck_verification`), acts on acceptance criteria outcomes while working, submits agent-permitted evidence only for checks it ran, waits on asynchronous work through the host instead of polling, stops only for a verified outcome, a pending human decision, a concrete blocker or a user pause, and starts close-out itself when the boundary is reached.
 - Readiness guidance matches the server: with approvals off there is no ready state; `requiredApprovals` 0 means `mark_variation_ready`; above 0 means `request_design_doc_review` directly, never ready first. Fixed in `writing-a-design-doc`, `closing-out-a-design-doc`, the example and the eval expectations.
