@@ -88,6 +88,6 @@ If the ship call fails, read the reason and act on it:
 - Open questions, with a request to acknowledge them: list the questions for the user, and pass `acknowledgeOpenQuestions: true` only after they agree to ship with them open.
 - Open questions that must be answered first (the organization blocks shipping on them): list them, and answer only the ones a person has decided.
 - Acceptance criteria need attention, with a request to acknowledge them: list them, and pass `acknowledgeVerification: true` only after the user agrees to ship anyway.
-- Criteria that must pass first: tell the user which ones and what would meet them. A person with `verification:manage` can still ship with an exception, with a reason, from the ship dialog in the app.
+- Criteria that must pass first: tell the user which ones and what would meet them. A person with `verification:manage` can still ship with an exception. Only when they tell you to ship anyway, call `mark_design_doc_shipped` with `exception: { reason }` holding their reason and their words in `decision.statement`. Archdocs records the criteria results as they stand at that moment, so read `get_verification_status` again and tell them what the exception covers before the call.
 - The organization requires the ship decision in Archdocs, or confirmed by the person: tell the user, and don't retry.
 - An open amendment: tell the user it has to be finished in the app first.

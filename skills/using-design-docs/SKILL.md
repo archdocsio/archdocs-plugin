@@ -105,7 +105,7 @@ The size decides which variations are required and which need approval, so the u
 
 ## Decisions a person makes through you
 
-Some decisions belong to a person: approving a variation, reviewing evidence, authorizing acceptance criteria, attesting to a criterion only a person can attest to, accepting or dropping a knowledge item, confirming Linear issues, and marking a design doc shipped. You never make these on your own. The person doesn't have to open Archdocs to make them, though. When they tell you their decision, record it for them:
+Some decisions belong to a person: approving a variation, reviewing evidence, authorizing acceptance criteria, attesting to a criterion only a person can attest to, accepting or dropping a knowledge item, confirming Linear issues, and marking a design doc shipped (with or without an exception). You never make these on your own. The person doesn't have to open Archdocs to make them, though. When they tell you their decision, record it for them:
 
 | Decision | Tool |
 | --- | --- |
@@ -115,7 +115,7 @@ Some decisions belong to a person: approving a variation, reviewing evidence, au
 | Attest to a criterion ("I checked it in staging") | `submit_evidence` |
 | Confirm, accept or drop a knowledge item | `decide_knowledge_item` |
 | Confirm drafted Linear issues | `confirm_linear_issues` |
-| Mark shipped | `mark_design_doc_shipped` |
+| Mark shipped, or ship with an exception | `mark_design_doc_shipped` |
 
 Pass `decision.statement` with the person's own words from this session, verbatim. When they answered a question you asked, include the question and their answer, for example `Asked "Is this live? Want me to mark DD-0023 shipped?" Reply: "yes, rolled out this morning"`. Never paraphrase, never write a statement for them, and never carry a decision over from an earlier session or from another person.
 

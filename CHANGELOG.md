@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- `closing-out-a-design-doc` relays a ship with an exception: when a person with `verification:manage` tells the agent to ship anyway, it passes `exception: { reason }` and their words in `decision.statement`, after telling them which criteria the exception covers. Archdocs fills in the criteria results current at the call. Needs the Archdocs server from 2026-11-01 or later.
+
 ## 0.7.0
 
 - Agents record decisions a person tells them, instead of sending them to the app. `using-design-docs` adds "Decisions a person makes through you": approving a variation (`approve_variation`), reviewing evidence (`review_evidence`), authorizing acceptance criteria (`authorize_acceptance_criteria`), attesting to a criterion (`submit_evidence`), accepting or dropping a knowledge item (`decide_knowledge_item`), confirming Linear issues (`confirm_linear_issues`) and marking shipped (`mark_design_doc_shipped`), each with the person's own words from the session in `decision.statement`. Only an explicit decision about that item counts; "looks good" is not one. Archdocs records it in the person's name, labeled relayed, and still applies their permissions, the approver rules and the organization's minimum for that decision. Needs an Archdocs server with these tools (live on archdocs.io since 2026-11-01).
