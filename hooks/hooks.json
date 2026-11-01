@@ -1,0 +1,20 @@
+{
+  "description": "Archdocs: remind the agent to keep the design doc's Work Log current after commits, after subagent results and at the end of a turn.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Agent|Task",
+        "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" worklog", "shell": "bash", "timeout": 10 }]
+      },
+      {
+        "matcher": "^mcp__.+__(get_design_doc|get_journal_handoff|list_journal_entries|add_journal_entry|create_design_doc|write_design_doc_variation|import_plan_file|create_comment_thread|reply_to_comment_thread)$",
+        "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" worklog", "shell": "bash", "timeout": 10 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd\" worklog", "shell": "bash", "timeout": 10 }]
+      }
+    ]
+  }
+}

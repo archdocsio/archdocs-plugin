@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+# Keep hooks best effort, including failures in tools or state storage.
+exec 2>/dev/null
+trap 'exit 0' EXIT
+set -e
+set -o pipefail
+export LC_ALL=C
+# Opt-out for these hooks alone: ARCHDOCS_WORKLOG_HOOKS=off in the environment.
+case ${ARCHDOCS_WORKLOG_HOOKS-} in off|false|0) exit 0 ;; esac
+
+event= session= conversation= name= stop_active= loop= status= status_present=
+turn= cursor= command= description= async= agent=
+
+# Extract only requested fields. Regexes require an object-key delimiter.
+# Walk past complete quoted tokens and track nesting so top-level fields
+# cannot be supplied by nested objects or escaped text in string values.
+# NUL delimiters preserve decoded tabs, newlines, quotes and backslashes.
+while IFS= read -r -d '' field; do
+  value=${field#*$'\t'}
+  case ${field%%$'\t'*} in
+    hook_event_name) event=$value ;;
+    session_id) session=$value ;;
+    conversation_id) conversation=$value ;;
+    tool_name) name=$value ;;
+    stop_hook_active) stop_active=$value ;;
+    loop_count) loop=$value ;;
+    status) status=$value; status_present=1 ;;
+    agent_id) agent=$value ;;
+    turn_id) turn=1 ;;
+    cursor_version) cursor=1 ;;
+    command) command=$value ;;
+    description) description=$value ;;
+    async) async=1 ;;
+  esac
+done < <(awk '
+function decode(s,    out,i,c,n) {
+  out=""
+  for (i=1; i<=length(s); i++) {
+    c=substr(s,i,1)
+    if (c=="\\" && i<length(s)) {
+      n=substr(s,++i,1)
+      if (n=="n") c="\n"
+      else if (n=="t") c="\t"
+      else if (n=="r") c="\r"
+      else if (n=="\"" || n=="\\" || n=="/") c=n
+      else c="\\" n
+    }
+    out=out c
+  }
+  return out
+}
+function save(k,v) {
+  if (!(k in seen)) { seen[k]=1; values[k]=v; order[++count]=k }
+}
+{ raw=raw $0 "\n" }
+END {
+  if (raw !~ /^[[:space:]]*\{/ || raw !~ /\}[[:space:]]*$/) exit
+  depth=0; arrays=0
+  for (i=1; i<=length(raw); i++) {
+    c=substr(raw,i,1)
+    if (c=="{") depth++
+    if (c=="}") depth--
+    if (c=="[") arrays++
+    if (c=="]") arrays--
+    if (depth<0 || arrays<0) exit
+    if (c=="{" || c=="," || c=="\"") tail=substr(raw,i)
+    if ((c=="{" || c==",") && match(tail, /^[{,][[:space:]]*"[A-Za-z_]+"[[:space:]]*:/)) {
+      key=substr(tail,1,RLENGTH); rest=substr(tail,RLENGTH+1)
+      sub(/^[{,][[:space:]]*"/,"",key); sub(/"[[:space:]]*:$/,"",key)
+      sub(/^[[:space:]]*/,"",rest)
+      is_string=match(rest, /^"([^"\\]|\\.)*"/)
+      val=""
+      if (is_string) val=decode(substr(rest,2,RLENGTH-2))
+      if (depth==1 && arrays==0) {
+        if (key=="turn_id" || key=="cursor_version") save(key,"1")
+        else if (key ~ /^(hook_event_name|session_id|conversation_id|tool_name|status|agent_id)$/ && is_string) save(key,val)
+        else if (key=="stop_hook_active" && match(rest,/^(true|false)([[:space:],}]|$)/)) {
+          v=substr(rest,1,RLENGTH); sub(/[[:space:],}]$/, "", v); save(key,v)
+        }
+        else if (key=="loop_count" && match(rest,/^-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?([[:space:],}]|$)/)) {
+          v=substr(rest,1,RLENGTH); sub(/[[:space:],}]$/, "", v); save(key,(v+0>0 ? "1" : "0"))
+        }
+      }
+      if ((key=="command" || key=="description") && is_string) save(key,val)
+      if (key=="status" && is_string && val=="async_launched") save("async","1")
+    }
+    if (c=="\"") {
+      if (!match(tail,/^"([^"\\]|\\.)*"/)) exit
+      i+=RLENGTH-1
+    }
+  }
+  if (depth!=0 || arrays!=0) exit
+  for (i=1; i<=count; i++) printf "%s\t%s%c",order[i],values[order[i]],0
+}')
+
+case $event in PostToolUse|postToolUse|Stop|stop) ;; *) exit 0 ;; esac
+host=claude
+case $event in [a-z]*) host=cursor ;; esac
+if [[ -n $cursor ]]; then host=cursor
+elif [[ $host != cursor && -n $turn ]]; then host=codex
+fi
+if [[ $host == cursor && -z $session ]]; then session=$conversation; fi
+key=${session//[^A-Za-z0-9._-]/}
+key=${key:0:128}
+[[ -n $key ]] || exit 0
+dir=${CLAUDE_PLUGIN_DATA:-${PLUGIN_DATA:-${TMPDIR:-/tmp}/archdocs-plugin}}/worklog
+state=$dir/$key.state
+
+emit() {
+  # Inside a subagent (Claude Code sends agent_id), keep the checkpoint but leave
+  # the reminder to the parent agent, which gets one when the subagent returns.
+  [[ -z $agent ]] || return 0
+  # Escape JSON without printf %b, which would also interpret literal \u text.
+  escaped=$(printf '%s' "$1" | awk '
+    {
+      if (NR>1) printf "\\n"
+      for(i=1;i<=length($0);i++) {
+        c=substr($0,i,1)
+        if(c=="\\") printf "\\\\"
+        else if(c=="\"") printf "\\\""
+        else if(c=="\r") printf "\\r"
+        else if(c=="\t") printf "\\t"
+        else if(c !~ /[[:cntrl:]]/) printf "%s",c
+      }
+    }')
+  if [[ $event == Stop || $event == stop ]]; then
+    case $host in
+      codex) printf '{"decision":"block","reason":"%s"}\n' "$escaped" ;;
+      cursor) printf '{"followup_message":"%s"}\n' "$escaped" ;;
+      *) printf '{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"%s"}}\n' "$escaped" ;;
+    esac
+  elif [[ $host == cursor ]]; then
+    printf '{"additional_context":"%s"}\n' "$escaped"
+  else
+    printf '{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"%s"}}\n' "$escaped"
+  fi
+}
+
+normalize() {
+  printf '%s' "$1" | awk '
+    { s=s " " $0 }
+    END {
+      gsub(/[[:space:]]+/," ",s); sub(/^ /,"",s); sub(/ $/,"",s)
+      # Count UTF-8 leading bytes, keeping complete characters under LC_ALL=C.
+      for(i=1;i<=length(s);i++) {
+        if(substr(s,i,1) !~ /[\200-\277]/) n++
+        if(n>100) { s=substr(s,1,i-1) "..."; break }
+      }
+      printf "%s",s
+    }'
+}
+
+if [[ $event == PostToolUse || $event == postToolUse ]]; then
+  bare=$name
+  mcp=
+  case $name in
+    *__*) bare=${name##*__}; mcp=1 ;;
+    MCP:*) bare=${name#MCP:}; mcp=1 ;;
+  esac
+  if [[ -n $mcp ]]; then
+    case $bare in
+      get_design_doc|get_journal_handoff|list_journal_entries|add_journal_entry|create_design_doc|write_design_doc_variation|import_plan_file)
+        if [[ ! -f $state ]]; then
+          mkdir -p "$dir"
+          find "$dir" -name '*.state' -mtime +7 -delete 2>/dev/null || :
+          printf 'active\n' > "$state.tmp.$$"
+          mv "$state.tmp.$$" "$state"
+        fi ;;
+    esac
+  fi
+  [[ -f $state ]] && grep -q '^active$' "$state" || exit 0
+  if [[ -n $mcp ]]; then
+    case $bare in
+      add_journal_entry|create_comment_thread|reply_to_comment_thread)
+        printf 'active\n' > "$state.tmp.$$"
+        mv "$state.tmp.$$" "$state"
+        exit 0 ;;
+    esac
+  fi
+  case $host:$name in
+    claude:Bash|claude:PowerShell|codex:Bash|cursor:Shell)
+      kinds=$(printf '%s\n' "$command" | awk '
+      function base(w) {
+        sub(/^.*[/\\]/,"",w); w=tolower(w); sub(/\.(exe|cmd)$/, "", w); return w
+      }
+      { input=input $0 "\n" }
+      END {
+        n=split(input,segments,/[&;|\n]+/)
+        for(s=1;s<=n;s++) {
+          seg=segments[s]
+          sub(/^[[:space:]({]+/,"",seg)
+          while (sub(/^[A-Za-z_][A-Za-z_0-9]*=[^[:space:]]*[[:space:]]+/,"",seg)) {}
+          sub(/[[:space:]]+$/,"",seg)
+          m=split(seg,w,/[[:space:]]+/); start=1; exe=base(w[start])
+          if(exe=="git") {
+            for(j=2;j<=m;j++) {
+              if(w[j]=="-C" || w[j]=="-c") { j++; continue }
+              if(w[j] ~ /^-/) continue
+              if(w[j]=="commit") commit=1
+              break
+            }
+            continue
+          }
+          # Peel supported launchers repeatedly, then recheck the executable.
+          while(start<=m) {
+            exe=base(w[start]); nextword=w[start+1]
+            if(exe=="npx" || exe=="bunx") start++
+            else if((exe=="pnpm" && (nextword=="exec" || nextword=="dlx")) ||
+                    (exe=="yarn" && nextword=="dlx") || (exe=="bundle" && nextword=="exec") ||
+                    ((exe=="uv" || exe=="poetry" || exe=="pipenv") && nextword=="run") ||
+                    ((exe=="python" || exe=="python3" || exe=="py") && nextword=="-m")) start+=2
+            else break
+          }
+          exe=base(w[start]); second=w[start+1]
+          if(exe ~ /^(jest|vitest|mocha|pytest|rspec|phpunit|ava)$/) tests=1
+          else if(exe ~ /^(npm|pnpm|yarn|bun|playwright|mvn|gradle|gradlew|node|tsx)$/) {
+            for(j=start+1;j<=m;j++) {
+              if(exe ~ /^(npm|pnpm|yarn|bun)$/ && w[j] ~ /^test(:|$)/) tests=1
+              if(exe=="playwright" && w[j]=="test") tests=1
+              if(exe ~ /^(mvn|gradle|gradlew)$/ && (w[j]=="test" || w[j] ~ /:test$/)) tests=1
+              if((exe=="node" || exe=="tsx") && w[j]=="--test") tests=1
+            }
+          }
+          else if(exe ~ /^(go|cargo|dotnet|deno|swift|mix|make)$/ && second=="test") tests=1
+          else if(exe=="make" && second=="check") tests=1
+        }
+        if(tests) print "test"
+        if(commit) print "commit"
+      }')
+      [[ -n $kinds ]] || exit 0
+      text=$(normalize "$command")
+      while IFS= read -r kind; do printf 'pending %s %s\n' "$kind" "$text" >> "$state"; done <<< "$kinds"
+      case $kinds in *commit*)
+        emit 'Archdocs: you committed while working under a design doc. Before your next step, add a Work Log entry for this commit with add_journal_entry (kind progress, a COMMIT reference with the repository and full SHA, and what it covers), unless the journal'"'"'s instructions say otherwise. Without a journal, post it in the plan'"'"'s "Deviations from the plan" thread.' ;;
+      esac ;;
+    claude:Agent|claude:Task|cursor:Task)
+      [[ -z $async ]] || exit 0
+      text=$(normalize "${description:-subagent}")
+      printf 'pending subagent %s\n' "$text" >> "$state"
+      emit 'Archdocs: a subagent returned while you'"'"'re working under a design doc. Before your next step, record what it produced and what your review of it found with add_journal_entry, unless the journal'"'"'s instructions say otherwise. A run, its review and its test results can share one entry.' ;;
+  esac
+  exit 0
+fi
+
+[[ -f $state ]] && grep -q '^active$' "$state" || exit 0
+if [[ $host == cursor ]]; then
+  [[ -z $loop || $loop == 0 ]] || exit 0
+  [[ -z $status_present || $status == completed ]] || exit 0
+else
+  [[ $stop_active != true ]] || exit 0
+fi
+# Compute the new checkpoint range and render at most five items in order.
+summary=$(awk '
+  /^stop-reminded [0-9]+$/ { r=$2 }
+  /^pending / { pending[++p]=$0 }
+  END {
+    if(p<=r) exit
+    printf "%d\n",p
+    for(i=r+1;i<=p && i<=r+5;i++) {
+      line=pending[i]; sub(/^pending /,"",line)
+      kind=line; sub(/ .*/,"",kind); sub(/^[^ ]+ /,"",line)
+      if(kind=="test") kind="tests"
+      if(i>r+1) printf "; "
+      printf "%s (%s)",kind,line
+    }
+    if(p-r>5) printf "; and %d more",p-r-5
+  }' "$state")
+[[ -n $summary ]] || exit 0
+count=${summary%%$'\n'*}
+items=${summary#*$'\n'}
+awk '!/^stop-reminded /' "$state" > "$state.tmp.$$"
+printf 'stop-reminded %s\n' "$count" >> "$state.tmp.$$"
+mv "$state.tmp.$$" "$state"
+emit "Archdocs: the design doc's Work Log is behind the work. Since its last entry: $items. Record them now with add_journal_entry (exact test results, commit references, what each run produced and what review found), unless the journal's instructions say otherwise. If none of this belongs on the design doc, say so and finish."

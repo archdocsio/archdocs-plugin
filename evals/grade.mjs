@@ -70,11 +70,13 @@ export function gradeTranscript(events, expect) {
       failures.push(`Expected ${ok ? 'a successful ' : ''}${a} before first ${b}`);
     }
   }
+  // A path of "*" matches against the whole input, for checks that may land in any field.
+  const argAt = (input, path) => (path === '*' ? input : path.split('.').reduce((value, key) => value?.[key], input));
   for (const { tool, path, pattern, ok = false } of expect.argMatches ?? []) {
     const regex = new RegExp(pattern);
     if (!calls.some((call) => {
       if (call.name !== tool || (ok && !call.ok)) return false;
-      const value = path.split('.').reduce((value, key) => value?.[key], call.input);
+      const value = argAt(call.input, path);
       return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
     })) failures.push(`No ${ok ? 'successful ' : ''}${tool} input at ${path} matches /${pattern}/`);
   }
@@ -82,7 +84,7 @@ export function gradeTranscript(events, expect) {
     const regex = new RegExp(pattern);
     if (calls.some((call) => {
       if (call.name !== tool) return false;
-      const value = path.split('.').reduce((value, key) => value?.[key], call.input);
+      const value = argAt(call.input, path);
       return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
     })) failures.push(`Forbidden ${tool} input at ${path} matches /${pattern}/`);
   }

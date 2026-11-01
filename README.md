@@ -71,6 +71,18 @@ You don't need the commands. The skills load on their own when you talk about pl
 
 The skills hold judgment only. Your organization's outlines, brief fields and writing rules come from the server at run time, so editing a variation type in Archdocs changes what the agent writes without updating this plugin.
 
+## Hooks
+
+An agent can skip writing to the Work Log when another skill or checklist is driving the work. The plugin's hooks remind it at the moments that matter. They stay silent unless the session has used the Archdocs design-doc tools (read a design doc or its journal, wrote one, or added an entry). Once it has:
+
+- after a `git commit`, the agent is reminded to add an entry for that commit with its reference;
+- after a subagent returns, it's reminded to record what the subagent produced and what its review found;
+- when it ends a turn with commits, test runs or subagent results that no entry has followed, it's reminded once to record them before finishing.
+
+A journal entry, or a reply in the "Deviations from the plan" thread when there's no journal, clears what's pending. The reminders defer to your journal's own instructions when those say how often or what to record. The hooks never write to Archdocs and make no network calls; they keep a small per-session state file in the plugin's data directory. They run in bash (Git for Windows on Windows) and do nothing when bash isn't available.
+
+Claude Code and Codex load `hooks/hooks.json`. Codex runs plugin hooks only after you review and trust them. Cursor loads `hooks/hooks-cursor.json` through the plugin manifest, which the manual Cursor setup above doesn't use. To turn these hooks off without touching any others, set `ARCHDOCS_WORKLOG_HOOKS=off` in the environment the agent runs in (in Claude Code, the `env` block of `settings.json` works).
+
 ## Other agents
 
 The skills are plain [Agent Skills](https://agentskills.io) folders. Copy the folders inside `skills/` into `.agents/skills/`, the vendor-neutral skills path, and point your agent's MCP client at `https://mcp.archdocs.io/mcp`. The server also sends a short version of these rules to every MCP client as server instructions.

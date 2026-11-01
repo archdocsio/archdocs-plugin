@@ -336,6 +336,14 @@ test('with-failing-test-repo writes a committed repo whose test fails on the for
   assert.match(execFileSync('git', ['log', '--format=%s'], { cwd: tempDir, encoding: 'utf8' }), /^feat: sms recipient formatting\s*$/);
   assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: tempDir, encoding: 'utf8' }).trim(), '');
 });
+test('with-failing-test-repo-origin adds a GitHub origin and no other change', async (t) => {
+  const tempDir = await temporary(t);
+  const vars = await setupScenario({ setup: 'with-failing-test-repo-origin', org: 'full' }, { ...base, tempDir, call: fixtureCall([]) });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', repoDir: tempDir });
+  const { execFileSync } = await import('node:child_process');
+  assert.equal(execFileSync('git', ['remote', 'get-url', 'origin'], { cwd: tempDir, encoding: 'utf8' }).trim(), 'https://github.com/example/cadence.git');
+  assert.equal(execFileSync('git', ['status', '--porcelain'], { cwd: tempDir, encoding: 'utf8' }).trim(), '');
+});
 test('with-review-thread opens an actionable reviewer thread on the spec', async (t) => {
   const calls = [];
   const vars = await setupScenario({ setup: 'with-review-thread', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls, { extra: (name) => (name === 'create_comment_thread' ? { id: 'thread-1' } : undefined) }) });
@@ -601,10 +609,10 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all thirty-one scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all thirty-three scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 31);
+  assert.equal(files.length, 33);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
@@ -612,7 +620,7 @@ test('all thirty-one scenario files have matching ids and use known tools and va
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
     assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file',
-      'with-failing-test-repo', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria', 'with-subsystem-design'].includes(scenario.setup ?? 'none'));
+      'with-failing-test-repo', 'with-failing-test-repo-origin', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria', 'with-subsystem-design'].includes(scenario.setup ?? 'none'));
     // Scenario tools are Claude Code tools, not MCP tools; they are granted on top of Read.
     for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
     const builtIn = new Set(scenario.tools ?? []);

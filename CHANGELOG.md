@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Hooks keep the Work Log current. After a `git commit` or a returned subagent, and once when a turn ends with commits, test runs or subagent results not yet recorded, the agent is reminded to record them on the design doc. They are silent unless the session has used the Archdocs design-doc tools, defer to the journal's own instructions, never write to Archdocs themselves, and keep only a per-session state file. One bash script serves Claude Code and Codex (`hooks/hooks.json`) and Cursor (`hooks/hooks-cursor.json`); a launcher adapted from obra/superpowers finds bash on Windows. `ARCHDOCS_WORKLOG_HOOKS=off` turns them off.
+- `working-under-a-design-doc` adds "Keep the record current": the record is never behind the work, so before starting the next step the agent records each commit, exact test results, what each subagent or delegated run produced and what its review found, and each approach that failed. A run, its review and its tests can share one entry. A journal type's explicit instructions on how often or what to record take priority. The skill now says it governs the whole span of the work, including while another skill, checklist or delegation tool drives the loop, and its description triggers after commits, test runs and returned runs. "Entries are checkpoints, not a log of every step" is gone.
+- Evals: new `checkpoints-recorded` and `delegated-run-recorded` scenarios on a failing-test repo with a GitHub origin; argument checks accept a path of `*` to match the whole input. Without the plugin 1/3 and 0/3, with it 3/3 each.
+
 ## 0.7.2
 
 - `using-design-docs` calls `get_task_context` before recommending how any catalogued system should work, including in a discussion or a "should we build X" answer, not only before planning or implementing code. Its description now triggers on those questions too. When `list_design_docs`, `search` or the context returns a design doc whose title covers the subsystem under discussion, the agent opens it with `get_design_doc` before proposing anything.

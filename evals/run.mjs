@@ -304,7 +304,7 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     return { planFile };
   }
   const docSetups = ['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-failing-test-repo',
-    'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria',
+    'with-failing-test-repo-origin', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria',
     'with-subsystem-design'];
   if (!docSetups.includes(setup)) throw new Error(`Unknown setup: ${setup}`);
   const standard = await invoke('list_design_doc_types', {});
@@ -324,8 +324,8 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     });
     return { ...vars, threadId: thread.id };
   }
-  if (setup === 'with-failing-test-repo') {
-    await writeTestRepo(tempDir, { passing: false });
+  if (setup === 'with-failing-test-repo' || setup === 'with-failing-test-repo-origin') {
+    await writeTestRepo(tempDir, { passing: false, origin: setup === 'with-failing-test-repo-origin' });
     return { ...vars, repoDir: tempDir };
   }
   if (setup === 'with-authorized-criteria') {
@@ -428,7 +428,8 @@ async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', r
 }
 
 // A one-commit repository with one test: formatRecipient should strip spaces from the number. With passing false it returns the number unchanged.
-async function writeTestRepo(dir, { passing }) {
+// With origin it also has a GitHub remote, so a commit reference has a repository to name; nothing is ever pushed there.
+async function writeTestRepo(dir, { passing, origin = false }) {
   const { execFileSync } = await import('node:child_process');
   await mkdir(path.join(dir, 'src'), { recursive: true });
   await mkdir(path.join(dir, 'test'), { recursive: true });
@@ -440,6 +441,7 @@ async function writeTestRepo(dir, { passing }) {
   git('init', '-q');
   git('-c', 'user.name=Eval', '-c', 'user.email=eval@archdocs.test', 'add', '.');
   git('-c', 'user.name=Eval', '-c', 'user.email=eval@archdocs.test', 'commit', '-q', '-m', 'feat: sms recipient formatting');
+  if (origin) git('remote', 'add', 'origin', 'https://github.com/example/cadence.git');
 }
 
 export function runClaude(args, prompt, { cwd, secrets = [], spawnProcess = spawn, platform = process.platform } = {}) {

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "postToolUse": [
+      {
+        "command": "./hooks/run-hook.cmd worklog",
+        "matcher": "^(Shell|Task)$|^MCP:(get_design_doc|get_journal_handoff|list_journal_entries|add_journal_entry|create_design_doc|write_design_doc_variation|import_plan_file|create_comment_thread|reply_to_comment_thread)$"
+      }
+    ],
+    "stop": [
+      { "command": "\"${CURSOR_PLUGIN_ROOT}/hooks/run-hook.cmd\" worklog", "loop_limit": 1 }
+    ]
+  }
+}

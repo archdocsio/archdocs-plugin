@@ -2,3 +2,4 @@ node_modules/
 evals/results/
 evals/mcp.eval.json
 evals/.eval-env
+.worklog-test-*/

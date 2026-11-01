@@ -1,0 +1,50 @@
+{
+  "id": "checkpoints-recorded",
+  "org": "full",
+  "setup": "with-failing-test-repo-origin",
+  "tools": [
+    "Bash",
+    "Edit",
+    "Write"
+  ],
+  "prompt": "Task 1 of {{designDocNumber}}: the recipient formatting test fails in the repository in the current directory. Fix it, run the tests and commit the fix. Don't push.",
+  "expect": {
+    "mustCall": [
+      "Bash"
+    ],
+    "mustSucceed": [
+      "add_journal_entry"
+    ],
+    "resultMatches": [
+      {
+        "tool": "Bash",
+        "pattern": "# fail 0"
+      }
+    ],
+    "argMatches": [
+      {
+        "tool": "add_journal_entry",
+        "path": "*",
+        "pattern": "\"COMMIT\"",
+        "ok": true
+      },
+      {
+        "tool": "add_journal_entry",
+        "path": "*",
+        "pattern": "[0-9]+ (tests? )?pass|pass(ed|es|ing)?:? ?[0-9]|fail(ed|ures|s)?:? ?0\\b|0 fail",
+        "ok": true
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "create_design_doc"
+    ],
+    "argMustNotMatch": [
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$|work-log|journal"
+      }
+    ]
+  }
+}

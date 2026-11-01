@@ -1,6 +1,6 @@
 ---
 name: working-under-a-design-doc
-description: Use when doing any task from an Archdocs design doc's plan, or any work on the change a design doc describes, including implementing, spikes, investigation, verification, live testing, research, reviewing or merging. Also use when CI or a reviewer responds to a push, when you learn something that differs from the spec or plan, when a decision is made, when a pull request opens, when you stop with work unfinished, or when the user asks what's next on a design doc. Not for writing the spec or plan, or for shipping.
+description: Use when doing any task from an Archdocs design doc's plan, or any work on the change a design doc describes, including implementing, spikes, investigation, verification, live testing, research, reviewing or merging, even while another skill or tool drives the work. Also use after each commit, after each test run, when a subagent or delegated run (Codex, another agent) returns, when CI or a reviewer responds to a push, when you learn something that differs from the spec or plan, when a decision is made, when a pull request opens, when you stop with work unfinished, or when the user asks what's next on a design doc. Not for writing the spec or plan, or for shipping.
 ---
 
 # Working under a design doc
@@ -9,6 +9,8 @@ A design doc that's only touched before and after the work misses most of what h
 
 You own the requested work until it reaches its completion boundary (below). A push, a pull request, a journal entry, a queued check or a handoff is an intermediate step, not the end. Spikes, verification runs and investigation count as work on the change. Don't mark anything shipped here; that stays with `closing-out-a-design-doc` and the person.
 
+This skill covers the whole span of the work, not just the first entry. When another skill, checklist or delegation tool drives the loop (a Codex run, subagents, a verification checklist), follow both: its steps for doing the work, and these for recording it. Its checklist having no "record" step doesn't mean skipping one.
+
 ## Where the record goes
 
 Call `list_design_doc_types`. If it returns an enabled type with `contentMode: "JOURNAL"` (the standard one is the Work Log, key `work-log`), that journal is the record. Write to it with `add_journal_entry`, using the entry kinds the type lists. Entries are append-only and attributed, and `get_design_doc` and `search` show them to the next reader.
@@ -16,6 +18,24 @@ Call `list_design_doc_types`. If it returns an enabled type with `contentMode: "
 If there is no journal type, the record is a comment thread on the plan variation. The first time, `create_comment_thread` with `designDocId`, `anchorField: "plan"` and content starting with "Deviations from the plan"; after that, `reply_to_comment_thread`. Tell the user once that a Work Log journal would make this visible to other agents; an admin adds it in Settings > Design docs.
 
 Never write a journal with `write_design_doc_variation` or mark it ready. The server refuses both.
+
+## Keep the record current
+
+For an agent, the record is the next session's only memory of this work, and the way a person follows it without reading your transcript. Hold it to one rule: the record is never behind the work. If this session ended now, the next agent could resume from the record alone, and a person reading it would know where things stand and why.
+
+Before you start the next step, record the last checkpoint:
+
+- each commit, pushed or not, with a `COMMIT` reference (repository and full SHA), even when one commit covers several plan tasks;
+- each test or check run, with exact results ("api jest: 968 passed, 0 failed", not "tests pass");
+- each subagent or delegated run (Codex, another agent): what it produced and what your review of it found;
+- each approach that failed, and why, so the next agent doesn't try it again;
+- each finding, decision and deviation (the sections below).
+
+A run, its review and its test results can share one entry when nothing else happened in between. Don't record individual edits, file reads or routine commands: keeping the record readable is about what goes into an entry, not how few entries there are. Write a one-line summary someone can scan, pick the kind that matches, and put the detail in `body`.
+
+The journal type's instructions come first. When they say how often or what to record ("milestones only", "agents: one entry per task"), follow them instead of this rate. Instructions that only ask for meaningful checkpoints don't change it: for an agent, the checkpoints above are the meaningful ones.
+
+Where the plugin's hooks run, they remind you after a commit, after a subagent returns, and when you end a turn with checkpoints unrecorded. Don't wait for the reminder; it's a backstop.
 
 ## Linking what you recorded
 
@@ -63,7 +83,7 @@ With `features.evidenceTracking` on, call `link_pull_request` right away. Archdo
 
 ## When a task is done
 
-With a journal, add a `progress` entry naming the plan task and linking the commits (`references` with `kind: "COMMIT"`, `repo` and the full SHA). Entries are checkpoints, not a log of every step: one per task, blocker, test result or decision.
+With a journal, add a `progress` entry naming the plan task and linking the commits (`references` with `kind: "COMMIT"`, `repo` and the full SHA). When you already recorded those commits as you made them, reference those entries (`kind: "ENTRY"`) instead of repeating them.
 
 ## Follow the change through
 

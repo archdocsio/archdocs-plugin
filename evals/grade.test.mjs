@@ -41,6 +41,16 @@ test('finalTextMatches fails clearly when the result event or result string is m
     assert.match(missingText.failures[0], /last result event has no result string/);
   }
 });
+test('argMatches and argMustNotMatch with path * match the whole input', () => {
+  const transcript = [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'mcp__archdocs-eval__add_journal_entry', input: { kind: 'progress', summary: 'Fixed the formatter', body: 'npm test: 1 passed, 0 failed', references: [{ kind: 'COMMIT', repo: 'example/cadence', sha: 'abc1234' }] } }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 't1', content: 'ok' }] } },
+  ];
+  assert.equal(gradeTranscript(transcript, { argMatches: [{ tool: 'add_journal_entry', path: '*', pattern: '0 failed', ok: true }, { tool: 'add_journal_entry', path: '*', pattern: '"COMMIT"' }] }).pass, true);
+  assert.equal(gradeTranscript(transcript, { argMatches: [{ tool: 'add_journal_entry', path: '*', pattern: 'subagent' }] }).pass, false);
+  assert.equal(gradeTranscript(transcript, { argMustNotMatch: [{ tool: 'add_journal_entry', path: '*', pattern: 'abc1234' }] }).pass, false);
+});
+
 test('argMatches checks nested path', () => {
   const expect = { argMatches: [{ tool: 'write_design_doc_variation', path: 'brief.decision', pattern: 'Valkey' }] };
   assert.equal(gradeTranscript(events({ name: 'write_design_doc_variation', input: { brief: { decision: 'Use Valkey' } } }), expect).pass, true);

@@ -1,0 +1,52 @@
+{
+  "id": "delegated-run-recorded",
+  "org": "full",
+  "setup": "with-failing-test-repo-origin",
+  "tools": [
+    "Bash",
+    "Edit",
+    "Write",
+    "Agent"
+  ],
+  "prompt": "Task 1 of {{designDocNumber}}: the recipient formatting test fails in the repository in the current directory. Have a subagent make the fix, review what it changed, run the tests yourself and commit. Don't push.",
+  "expect": {
+    "mustCall": [
+      "Agent",
+      "Bash"
+    ],
+    "mustSucceed": [
+      "add_journal_entry"
+    ],
+    "resultMatches": [
+      {
+        "tool": "Bash",
+        "pattern": "# fail 0"
+      }
+    ],
+    "argMatches": [
+      {
+        "tool": "add_journal_entry",
+        "path": "*",
+        "pattern": "[Ss]ubagent|[Dd]elegat|[Rr]eview",
+        "ok": true
+      },
+      {
+        "tool": "add_journal_entry",
+        "path": "*",
+        "pattern": "\"COMMIT\"",
+        "ok": true
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "create_design_doc"
+    ],
+    "argMustNotMatch": [
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$|work-log|journal"
+      }
+    ]
+  }
+}
