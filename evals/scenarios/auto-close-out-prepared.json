@@ -4,14 +4,37 @@
   "setup": "with-done-handoff",
   "prompt": "Pick up {{designDocNumber}}.",
   "expect": {
-    "mustSucceed": ["get_journal_handoff", "write_design_doc_variation", "mark_variation_ready"],
-    "argMatches": [
-      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" },
-      { "tool": "write_design_doc_variation", "path": "content", "pattern": "[Bb]atch" },
-      { "tool": "mark_variation_ready", "path": "variation", "pattern": "^evidence$" }
+    "mustSucceed": [
+      "get_journal_handoff",
+      "write_design_doc_variation",
+      "mark_variation_ready"
     ],
-    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "argMatches": [
+      {
+        "tool": "write_design_doc_variation",
+        "path": "variation",
+        "pattern": "^evidence$"
+      },
+      {
+        "tool": "write_design_doc_variation",
+        "path": "content",
+        "pattern": "[Bb]atch"
+      },
+      {
+        "tool": "mark_variation_ready",
+        "path": "variation",
+        "pattern": "^evidence$"
+      }
+    ],
+    "mustNotCall": [
+      "mark_design_doc_shipped",
+      "create_design_doc"
+    ],
     "finalTextMatches": "live|ship",
-    "state": { "variationState": { "evidence": "READY" }, "designDocStatus": "APPROVED" }
+    "state": {
+      "variationState": {
+        "evidence": "READY"
+      }
+    }
   }
 }

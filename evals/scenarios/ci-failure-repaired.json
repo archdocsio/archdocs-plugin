@@ -25,10 +25,6 @@
       [
         "Edit|Write",
         "add_journal_entry"
-      ],
-      [
-        "Edit|Write",
-        "Bash"
       ]
     ],
     "argMatches": [

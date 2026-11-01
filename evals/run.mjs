@@ -324,10 +324,12 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     if (setup === 'with-done-handoff') {
       await entry({ kind: 'progress', summary: 'Sequencer SMS path implemented and merged in PR #42.', references: [{ kind: 'PULL_REQUEST', repo: 'example/cadence', number: 42 }] });
       await entry({ kind: 'progress', summary: 'Delivery Worker SMS path implemented and merged in PR #42; delivery events batched every 5 seconds.' });
+      await entry({ kind: 'test', summary: 'node --test passes for the Sequencer and Delivery Worker SMS paths at 7d2e1f0.', references: [{ kind: 'COMMIT', repo: 'example/cadence', sha: '7d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e' }] });
+      await entry({ kind: 'deviation', summary: 'Delivery events are batched every 5 seconds instead of streamed to the Event Store: the stream client drops events under backpressure.' });
       await entry({
         kind: 'handoff', summary: 'Session handoff',
-        handoff: { done: 'Sequencer and Delivery Worker SMS paths (E-1, E-2); PR #42 merged.', blocked: '', next: 'Nothing left in the plan.' },
-        references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }],
+        handoff: { done: 'Sequencer and Delivery Worker SMS paths (E-1, E-2), tests green (E-3); PR #42 merged.', blocked: '', next: 'Nothing left in the plan. The batching deviation is recorded (E-4).' },
+        references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }, { kind: 'ENTRY', number: 3 }, { kind: 'ENTRY', number: 4 }],
       });
       return { ...vars, journalVariation: journal.key };
     }
