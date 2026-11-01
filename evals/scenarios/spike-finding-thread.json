@@ -1,0 +1,16 @@
+{
+  "id": "spike-finding-thread",
+  "org": "lean",
+  "setup": "design-doc-with-spec-and-plan",
+  "prompt": "I ran the Phase 0 check for {{designDocNumber}}: the Event Store stream client drops events under backpressure, so streaming delivery events the way the plan says won't work. What now?",
+  "expect": {
+    "mustCall": ["create_comment_thread"],
+    "mustNotCall": ["add_journal_entry", "mark_design_doc_shipped", "create_design_doc"],
+    "argMatches": [
+      { "tool": "create_comment_thread", "path": "content", "pattern": "[Bb]ackpressure|[Dd]rop|[Ss]tream|[Bb]atch|Event Store" }
+    ],
+    "argMustNotMatch": [
+      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$" }
+    ]
+  }
+}

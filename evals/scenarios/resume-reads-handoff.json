@@ -1,0 +1,18 @@
+{
+  "id": "resume-reads-handoff",
+  "org": "full",
+  "setup": "with-journal-entries",
+  "prompt": "Pick up {{designDocNumber}} where the last session left it. What's the state and what's next?",
+  "expect": {
+    "mustCall": ["get_journal_handoff"],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "order": [
+      ["get_journal_handoff|list_journal_entries", "add_journal_entry"],
+      ["get_journal_handoff|list_journal_entries", "write_design_doc_variation"]
+    ],
+    "argMustNotMatch": [
+      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "work-log|journal|^evidence$" }
+    ],
+    "finalTextMatches": "Event Store|backpressure|stream|Delivery Worker"
+  }
+}

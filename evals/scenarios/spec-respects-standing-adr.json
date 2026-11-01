@@ -1,0 +1,31 @@
+{
+  "id": "spec-respects-standing-adr",
+  "org": "full",
+  "setup": "with-standing-adr",
+  "prompt": "Write up a design for adding SMS as a delivery channel. The Delivery Worker should call Twilio synchronously in the send path so we get the delivery status back immediately. It touches the Sequencer and the Delivery Worker.",
+  "expect": {
+    "mustCall": [
+      "create_design_doc",
+      "write_design_doc_variation",
+      "add_design_doc_question"
+    ],
+    "mustNotCall": [
+      "supersede_adr",
+      "set_adr_status",
+      "update_adr"
+    ],
+    "order": [
+      [
+        "get_task_context|list_adrs_for_object|list_adrs|get_adr",
+        "write_design_doc_variation"
+      ]
+    ],
+    "argMatches": [
+      {
+        "tool": "add_design_doc_question",
+        "path": "text",
+        "pattern": "ADR|[Ss]ynchronous|[Qq]ueue|[Dd]ecision"
+      }
+    ]
+  }
+}

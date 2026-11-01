@@ -61,11 +61,11 @@ You don't need the commands. The skills load on their own when you talk about pl
 
 `using-design-docs` decides between a design doc, an architecture decision record, an update to an existing diagram, or nothing. It checks before an agent starts planning or building a change, reads the rule from the Archdocs server, and proposes a design doc instead of creating one unasked. A design doc is the frozen record of one change. Diagrams and catalog objects describe the system as it is now.
 
-`writing-a-design-doc` covers the work before shipping. It reads your organization's variation types and follows their instructions, links real catalog objects, imports plan files from Claude Code, Spec Kit or Kiro, and turns every undecided point into a tracked question instead of a guess.
+`writing-a-design-doc` covers the work before it starts. It gathers the engineering context for the objects the change touches (standing ADRs, earlier design docs, open questions), raises a conflict with a standing decision as a tracked question instead of resolving it, reads your organization's variation types and follows their instructions, links real catalog objects, imports plan files from Claude Code, Spec Kit or Kiro, and turns every undecided point into a tracked question instead of a guess.
 
-`working-under-a-design-doc` covers the middle. It records decisions, pull requests and changed objects as they happen. When the code drifts from the plan, it adds an entry to a "Deviations from the plan" thread instead of rewriting the plan.
+`working-under-a-design-doc` covers the middle, including spikes, verification and live testing. It records findings, decisions, pull requests and changed objects as they happen, in the design doc's Work Log journal when your organization has one, or in a "Deviations from the plan" thread when it doesn't. It resumes from the journal's last handoff and leaves one before stopping, so the next session or agent picks up from the doc rather than from chat.
 
-`closing-out-a-design-doc` covers the work after. It links pull requests, records changed objects, writes the evidence with each deviation from the plan, and leaves approval and shipping to a person.
+`closing-out-a-design-doc` covers the work after. It builds the evidence from the journal, linked pull requests and recorded changes, reads acceptance criteria and Linear work when the server offers them, writes each deviation from the plan, treats journal claims as reported rather than verified, and leaves approval and shipping to a person.
 
 The skills hold judgment only. Your organization's outlines, brief fields and writing rules come from the server at run time, so editing a variation type in Archdocs changes what the agent writes without updating this plugin.
 

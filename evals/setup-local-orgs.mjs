@@ -111,6 +111,16 @@ export async function main() {
     if (!sameFeatures(await scoped('/design-doc-settings'))) throw new Error(`${account.label}: design doc settings did not match.`);
     console.log(`${account.label}: design doc settings ${changed ? 'updated' : 'reused'} (approvals=${account.enabled}, sizes=${account.enabled}, evidenceTracking=${account.enabled}).`);
 
+    // Existing orgs only get the Work Log journal when they opt in. The full org
+    // opts in so journal scenarios run there; lean keeps the comment-thread fallback.
+    const journalTypes = (list) => (Array.isArray(list) ? list : list.types ?? []).filter((type) => type.contentMode === 'JOURNAL');
+    const hadJournal = journalTypes(await scoped('/design-doc-types')).length > 0;
+    if (account.enabled && !hadJournal) await scoped('/design-doc-types/presets/work-log', { method: 'POST', body: {} });
+    const hasJournal = journalTypes(await scoped('/design-doc-types')).length > 0;
+    if (account.enabled && !hasJournal) throw new Error(`${account.label}: Work Log journal was not added.`);
+    if (!account.enabled && hasJournal) console.log(`${account.label}: has a Journal type; thread-fallback scenarios expect none.`);
+    console.log(`${account.label}: Work Log journal ${account.enabled ? (hadJournal ? 'reused' : 'added') : 'not added (thread fallback)'}.`);
+
     // MCP handlers authorize with PermissionService, not PAT scopes. The org
     // owner has all permissions for design docs, ADRs, comments, objects and docs.
     const pat = await scoped('/pat', { method: 'POST', body: { name: `Local eval ${account.label}`, scopes: [] } });

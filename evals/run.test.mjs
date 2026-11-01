@@ -194,6 +194,51 @@ test('setup respects approval feature and size rules without sending baseVersion
     assert.equal(calls.filter((call) => call.name === 'request_design_doc_review').length, approvals ? 2 : 0);
   }
 });
+test('with-journal-entries setup adds entries and a handoff to the enabled journal, or fails clearly without one', async (t) => {
+  const calls = [];
+  const types = (journal) => ['spec', 'plan'].map((key) => ({ key, enabled: true, approvalFor: [], briefFields: [] }))
+    .concat(journal ? [{ key: 'work-log', enabled: true, contentMode: 'JOURNAL', briefFields: [] }] : []);
+  const call = (journal) => async (endpoint, pat, name, args) => {
+    calls.push({ name, args });
+    if (name === 'list_design_doc_types') return { features: { approvals: false }, types: types(journal) };
+    if (name === 'create_design_doc') return { id: 'fixture', displayNumber: 'DD-0003' };
+    return {};
+  };
+  const tempDir = await temporary(t);
+  assert.deepEqual(await setupScenario({ setup: 'with-journal-entries' }, { endpoint: 'endpoint', pat: 'test-credential', tempDir, call: call(true) }),
+    { designDocNumber: 'DD-0003', journalVariation: 'work-log' });
+  const entries = calls.filter((call) => call.name === 'add_journal_entry');
+  assert.equal(entries.length, 3);
+  assert.ok(entries.every((entry) => entry.args.designDocId === 'fixture' && entry.args.variation === 'work-log' && entry.args.summary));
+  assert.deepEqual(entries.map((entry) => entry.args.kind), ['progress', 'blocker', 'handoff']);
+  assert.ok(entries[2].args.handoff.done && entries[2].args.handoff.blocked && entries[2].args.handoff.next);
+  assert.equal(calls.filter((call) => call.name === 'write_design_doc_variation').every((call) => call.args.variation !== 'work-log'), true);
+  await assert.rejects(setupScenario({ setup: 'with-journal-entries' }, { endpoint: 'endpoint', pat: 'test-credential', tempDir, call: call(false) }), /Journal type/);
+});
+test('with-standing-adr setup creates an accepted ADR and links it to the Delivery Worker over REST', async () => {
+  const calls = [];
+  const call = async (endpoint, pat, name, args) => {
+    calls.push({ name, args });
+    if (name === 'list_objects') return { objects: [{ id: 'seq', name: 'Sequencer' }, { id: 'worker', name: 'Delivery Worker' }] };
+    if (name === 'create_adr') return { id: 'adr-1', title: args.title };
+    return {};
+  };
+  const requests = [];
+  const fetchImpl = async (url, options) => {
+    const route = new URL(url).pathname;
+    requests.push({ method: options.method, route, auth: options.headers.Authorization, org: options.headers['x-organization-id'], body: options.body });
+    return Response.json(route === '/auth/login' ? { token: 'jwt' } : { links: [] });
+  };
+  const vars = await setupScenario({ setup: 'with-standing-adr', org: 'full' }, { endpoint: 'endpoint', pat: 'test-credential', env: runEnv, call, fetchImpl });
+  assert.match(vars.adrTitle, /never synchronously/);
+  assert.deepEqual(calls.map((call) => call.name), ['list_objects', 'create_adr']);
+  const link = requests.find((request) => request.route === '/adrs/adr-1/links');
+  assert.equal(link.method, 'PUT');
+  assert.equal(link.auth, 'Bearer jwt');
+  assert.equal(link.org, 'full-org');
+  assert.deepEqual(JSON.parse(link.body), { links: [{ targetType: 'object', targetId: 'worker' }] });
+  assert.equal(calls.some((call) => call.name === 'create_design_doc'), false);
+});
 test('plan-file setup writes an importable plan', async (t) => {
   const vars = await setupScenario({ setup: 'plan-file' }, { tempDir: await temporary(t) });
   assert.match(await readFile(vars.planFile, 'utf8'), /Session Cache eviction change/);
@@ -345,17 +390,17 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all fourteen scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all nineteen scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 14);
+  assert.equal(files.length, 19);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
     assert.equal(file, `${scenario.id}.json`);
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
-    assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'approved-plan', 'plan-file'].includes(scenario.setup ?? 'none'));
+    assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file'].includes(scenario.setup ?? 'none'));
     const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? [])];
     for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.order ?? []).flat(), ...argExpectations.map((item) => item.tool)]) {
       for (const alternative of tool.split('|')) assert.ok(tools.has(alternative), `${scenario.id}: ${alternative}`);

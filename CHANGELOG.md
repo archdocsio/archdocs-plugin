@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- `writing-a-design-doc` gathers context before writing: `get_task_context` for the touched objects, with `list_adrs_for_object`, `list_design_docs` and `get_impact` as the fallback, and raises a conflict with a standing ADR as a tracked question instead of resolving it.
+- `working-under-a-design-doc` triggers on spikes, verification, live testing and "what's next", records findings, decisions and deviations in the Work Log journal when the organization has one (`add_journal_entry`), falls back to the Deviations thread when it doesn't, resumes from `get_journal_handoff`, and leaves a handoff before stopping.
+- `closing-out-a-design-doc` builds the evidence from the journal, reads acceptance criteria and Linear work when the server offers them, and treats journal claims as reported, not verified.
+- `using-design-docs` maps the three later skills to before, during and after the work, and skips `get_task_context` on servers that don't offer it.
+- Evals: `with-journal-entries` and `with-standing-adr` fixtures, five new scenarios, and the full eval org opts into the Work Log so journal and thread paths are both covered.
+
 ## 0.3.0
 
 Cursor plugin manifest (`.cursor-plugin/plugin.json`) with the same skills, commands and hosted MCP server.

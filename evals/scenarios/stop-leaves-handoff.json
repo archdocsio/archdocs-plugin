@@ -1,0 +1,17 @@
+{
+  "id": "stop-leaves-handoff",
+  "org": "full",
+  "setup": "with-journal-entries",
+  "prompt": "I'm stopping for today on {{designDocNumber}}. The Sequencer SMS path is done and its tests pass locally; the Delivery Worker side is untouched, and we still haven't decided batching versus streaming for the Event Store. Leave things so whoever picks this up tomorrow knows where it stands.",
+  "expect": {
+    "mustCall": ["add_journal_entry"],
+    "mustNotCall": ["mark_design_doc_shipped", "create_design_doc"],
+    "argMatches": [
+      { "tool": "add_journal_entry", "path": "kind", "pattern": "^handoff$" },
+      { "tool": "add_journal_entry", "path": "handoff", "pattern": "Delivery Worker|Event Store|batch|stream" }
+    ],
+    "argMustNotMatch": [
+      { "tool": "write_design_doc_variation", "path": "variation", "pattern": "^evidence$|work-log|journal" }
+    ]
+  }
+}

@@ -78,7 +78,7 @@ function redact(text, secrets) {
   return text;
 }
 
-export async function resetEvalOrg({ api, email, password, orgId, fetchImpl = fetch }) {
+export function restClient({ api, email, password, orgId, fetchImpl = fetch }) {
   let token;
   const base = api.replace(/\/$/, '');
   async function request(route, { method = 'GET', body, scoped = true } = {}) {
@@ -99,11 +99,20 @@ export async function resetEvalOrg({ api, email, password, orgId, fetchImpl = fe
     try { return await response.json(); }
     catch { throw new Error(`${label} returned invalid JSON.`); }
   }
-  try {
+  async function login() {
     if (!email || !password || !orgId) throw new Error('Login email, stored password and organization id are required. Run evals/setup-local-orgs.mjs.');
     const auth = await request('/auth/login', { method: 'POST', scoped: false, body: { email, password } });
     if (typeof auth?.token !== 'string' || !auth.token) throw new Error('POST /auth/login returned no JWT.');
     token = auth.token;
+  }
+  return { request, login, secrets: () => [password, token] };
+}
+
+export async function resetEvalOrg(options) {
+  const client = restClient(options);
+  const { request } = client;
+  try {
+    await client.login();
     const ids = [];
     const cursors = new Set();
     let cursor;
@@ -138,7 +147,7 @@ export async function resetEvalOrg({ api, email, password, orgId, fetchImpl = fe
     }
     return { designDocsDeleted, adrsDeleted };
   } catch (error) {
-    throw new Error(redact(`Eval org reset failed: ${error.message}`, [password, token]));
+    throw new Error(redact(`Eval org reset failed: ${error.message}`, client.secrets()));
   }
 }
 
@@ -175,9 +184,33 @@ export async function mcpCall(endpoint, pat, name, args) {
   } catch (error) { throw new Error(redact(error.message, [pat])); }
 }
 
-export async function setupScenario(scenario, { endpoint, pat, tempDir, env = process.env, call = mcpCall }) {
+export async function setupScenario(scenario, { endpoint, pat, tempDir, env = process.env, call = mcpCall, fetchImpl = fetch }) {
   const setup = scenario.setup ?? 'none';
   if (setup === 'none') return {};
+  const invoke = (name, args) => call(endpoint, pat, name, args);
+  if (setup === 'with-standing-adr') {
+    // An accepted ADR linked to the Delivery Worker, so a spec that calls Twilio synchronously conflicts with it.
+    const listed = await invoke('list_objects', { search: 'Delivery Worker' });
+    const objects = Array.isArray(listed) ? listed : listed.objects ?? listed.items ?? [];
+    const worker = objects.find((object) => object.name === 'Delivery Worker');
+    if (!worker?.id) throw new Error('Eval org needs the Cadence "Delivery Worker" object. Run evals/setup-local-orgs.mjs.');
+    const adr = await invoke('create_adr', {
+      title: 'Delivery Worker sends through the outbound queue, never synchronously',
+      context: 'Synchronous provider calls in the send path stalled the Delivery Worker during the 2025 email provider outage.',
+      decisionOutcome: 'Every outbound message leaves the Delivery Worker through the outbound queue. The send path never waits on a provider call; delivery status arrives through provider callbacks.',
+      consideredOptions: [
+        { id: 'queue', title: 'Outbound queue with callbacks', chosen: true },
+        { id: 'sync', title: 'Synchronous provider call in the send path', cons: ['Provider latency stalls the worker'] },
+      ],
+    });
+    if (!adr.id) throw new Error('create_adr did not return an id');
+    // Accepting an ADR needs a Business plan, so the fixture stays PROPOSED; get_task_context lists it as uncertain (not approved).
+    // ADR links have no MCP tool; set them over REST with the eval user's login.
+    const client = restClient({ ...resetOptions(scenario, env), fetchImpl });
+    await client.login();
+    await client.request(`/adrs/${encodeURIComponent(adr.id)}/links`, { method: 'PUT', body: { links: [{ targetType: 'object', targetId: worker.id }] } });
+    return { adrTitle: 'Delivery Worker sends through the outbound queue, never synchronously' };
+  }
   if (setup === 'approved-plan') {
     if (!env.ARCHDOCS_EVAL_APPROVED_DD) {
       throw new Error('approved-plan setup needs a human approval step: approve the plan variation in the UI with no amendment open, then set ARCHDOCS_EVAL_APPROVED_DD (for example DD-0004).');
@@ -190,8 +223,7 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     await writeFile(planFile, '# Session Cache eviction change\n\n## Goal\nEvict expired sessions from Session Cache.\n\n## Implementation plan\n1. Read the current eviction code and tests.\n2. Add expiry checks before returning cached sessions.\n3. Test expired and active sessions.\n');
     return { planFile };
   }
-  if (!['design-doc-with-spec-and-plan', 'with-open-question'].includes(setup)) throw new Error(`Unknown setup: ${setup}`);
-  const invoke = (name, args) => call(endpoint, pat, name, args);
+  if (!['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries'].includes(setup)) throw new Error(`Unknown setup: ${setup}`);
   const standard = await invoke('list_design_doc_types', {});
   const doc = await invoke('create_design_doc', { title: 'SMS delivery channel', size: 'STANDARD' });
   if (!doc.id || !doc.displayNumber) throw new Error('create_design_doc did not return id and displayNumber');
@@ -216,6 +248,24 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     context: 'The SMS provider has not been decided.', variation: 'spec',
     options: [{ label: 'Twilio' }, { label: 'MessageBird' }],
   });
+  if (setup === 'with-journal-entries') {
+    // A journal with a saved handoff, left by a previous session. Setup never approves anything.
+    const journal = standard.types?.find((type) => type.contentMode === 'JOURNAL' && type.enabled);
+    if (!journal) throw new Error('Eval org needs an enabled Journal type such as the Work Log. Run evals/setup-local-orgs.mjs.');
+    const entry = (args) => invoke('add_journal_entry', { designDocId: doc.id, variation: journal.key, ...args });
+    await entry({ kind: 'progress', summary: 'Sequencer SMS path implemented; its unit tests pass locally.' });
+    await entry({ kind: 'blocker', summary: 'Event Store stream client drops events under backpressure, so streaming delivery events as planned does not hold.' });
+    await entry({
+      kind: 'handoff', summary: 'Session handoff',
+      handoff: {
+        done: 'Sequencer SMS path (E-1).',
+        blocked: 'Event Store streaming drops events under backpressure (E-2). Batching versus streaming is undecided.',
+        next: 'Decide batching versus streaming for the Event Store, then extend the Delivery Worker.',
+      },
+      references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }],
+    });
+    return { designDocNumber: doc.displayNumber, journalVariation: journal.key };
+  }
   return { designDocNumber: doc.displayNumber };
 }
 
@@ -257,7 +307,7 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     if (scenario.setup === 'approved-plan') {
       throw new Error('approved-plan setup requires human approval of a fresh fixture after the per-run reset. Pre-existing approved plans are deleted by reset; this scenario needs a manual setup step before Claude can run.');
     }
-    const vars = await setupScenario(scenario, { endpoint, pat, tempDir, env, call });
+    const vars = await setupScenario(scenario, { endpoint, pat, tempDir, env, call, fetchImpl });
     const mcpConfigPath = path.join(tempDir, 'mcp.eval.json');
     await writeFile(mcpConfigPath, JSON.stringify({ mcpServers: {
       'archdocs-eval': { type: 'http', url: endpoint, headers: { Authorization: `Bearer ${pat}` } },
