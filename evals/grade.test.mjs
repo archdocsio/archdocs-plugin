@@ -107,3 +107,71 @@ test('order uses the first call across right-side alternatives', () => {
 test('ignores tool results and user content', () => {
   assert.equal(gradeTranscript([{ type: 'user', message: { content: [{ type: 'tool_use', name: 'create_adr' }] } }], { mustCall: ['create_adr'] }).pass, false);
 });
+
+// Each pair is [name, input, { ok, text }]; results are correlated by tool_use_id, the way stream-json transcripts carry them.
+const withResults = (...pairs) => {
+  const uses = pairs.map(([name, input], i) => ({ type: 'tool_use', id: `toolu_${i}`, name, input }));
+  const results = pairs.filter(([, , result]) => result).map(([, , result], i) => ({
+    type: 'tool_result', tool_use_id: `toolu_${i}`, ...(result.ok ? {} : { is_error: true }), content: result.text,
+  }));
+  return [{ type: 'assistant', message: { content: uses } }, { type: 'user', message: { content: results } }];
+};
+test('mustSucceed fails when every call of the tool errored, while mustCall still passes', () => {
+  const transcript = withResults(['mcp__archdocs-eval__mark_variation_ready', { variation: 'evidence' }, { ok: false, text: 'Approvals are off for this organization.' }]);
+  assert.equal(gradeTranscript(transcript, { mustCall: ['mark_variation_ready'] }).pass, true);
+  const grade = gradeTranscript(transcript, { mustSucceed: ['mark_variation_ready'] });
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /mark_variation_ready never succeeded.*Approvals are off/);
+});
+test('mustSucceed passes when one call succeeded after a failure', () => {
+  const transcript = withResults(
+    ['write_design_doc_variation', { variation: 'spec' }, { ok: false, text: 'brief is required' }],
+    ['write_design_doc_variation', { variation: 'spec' }, { ok: true, text: '{"id":"v1"}' }],
+  );
+  assert.deepEqual(gradeTranscript(transcript, { mustSucceed: ['write_design_doc_variation'] }), { pass: true, failures: [] });
+});
+test('mustSucceed fails when the tool was never called', () => {
+  assert.match(gradeTranscript(withResults(), { mustSucceed: ['submit_evidence'] }).failures[0], /submit_evidence never succeeded/);
+});
+test('a call with no tool_result counts as not successful', () => {
+  const transcript = withResults(['mark_variation_ready', { variation: 'spec' }]);
+  assert.equal(gradeTranscript(transcript, { mustSucceed: ['mark_variation_ready'] }).pass, false);
+});
+test('mustNotFail fails on any errored call of the tool', () => {
+  const transcript = withResults(
+    ['mark_variation_ready', { variation: 'spec' }, { ok: false, text: 'Approval is required for this size. Request review instead.' }],
+    ['request_design_doc_review', { variation: 'spec' }, { ok: true, text: '{}' }],
+  );
+  const grade = gradeTranscript(transcript, { mustNotFail: ['mark_variation_ready'] });
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /mark_variation_ready failed: Approval is required/);
+  assert.deepEqual(gradeTranscript(transcript, { mustNotFail: ['request_design_doc_review'] }), { pass: true, failures: [] });
+});
+test('expectFailure requires an errored call whose message matches', () => {
+  const transcript = withResults(['mark_variation_ready', { variation: 'spec' }, { ok: false, text: 'Approval is required for this size.' }]);
+  assert.deepEqual(gradeTranscript(transcript, { expectFailure: [{ tool: 'mark_variation_ready', pattern: 'Approval is required' }] }), { pass: true, failures: [] });
+  const grade = gradeTranscript(transcript, { expectFailure: [{ tool: 'mark_variation_ready', pattern: 'Business plan' }] });
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /No failed mark_variation_ready call matches \/Business plan\//);
+  assert.equal(gradeTranscript(withResults(['mark_variation_ready', {}, { ok: true, text: '{}' }]), { expectFailure: [{ tool: 'mark_variation_ready', pattern: '.' }] }).pass, false);
+});
+test('resultMatches reads string and array result content of successful calls only', () => {
+  const array = [{ type: 'text', text: '# tests 3\n' }, { type: 'text', text: '# fail 0\n' }];
+  const transcript = withResults(
+    ['Bash', { command: 'node --test' }, { ok: false, text: '# fail 1' }],
+    ['Bash', { command: 'node --test' }, { ok: true, text: array }],
+  );
+  assert.deepEqual(gradeTranscript(transcript, { resultMatches: [{ tool: 'Bash', pattern: '# fail 0' }] }), { pass: true, failures: [] });
+  const grade = gradeTranscript(transcript, { resultMatches: [{ tool: 'Bash', pattern: '# fail 1' }] });
+  assert.equal(grade.pass, false);
+  assert.match(grade.failures[0], /No successful Bash result matches \/# fail 1\//);
+});
+test('results correlate by id across several user events and ignore unrelated ids', () => {
+  const transcript = [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'a', name: 'mark_variation_ready', input: {} }, { type: 'tool_use', id: 'b', name: 'link_pull_request', input: {} }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'b', content: 'ok' }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'zzz', content: 'stray' }, { type: 'tool_result', tool_use_id: 'a', is_error: true, content: 'nope' }] } },
+  ];
+  assert.deepEqual(gradeTranscript(transcript, { mustSucceed: ['link_pull_request'] }), { pass: true, failures: [] });
+  assert.equal(gradeTranscript(transcript, { mustSucceed: ['mark_variation_ready'] }).pass, false);
+});
