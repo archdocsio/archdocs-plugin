@@ -102,11 +102,15 @@ Don't create a new canvas doc to show a proposed design. Canvas docs describe th
 
 For images (a sketch, a screenshot of a dashboard in the evidence), upload with `attach_design_doc_file` for small files or `request_design_doc_upload` then `complete_design_doc_upload` for large ones. Each returns a markdown snippet; put it in the variation text where the image belongs.
 
-## 12. Mark ready, then review
+## 12. Ready or review
 
-Call `mark_variation_ready` on each document variation as soon as you've written it and the user hasn't asked for more changes. Don't hold it back because questions are open: questions are tracked on their own, and ready means "the author is done", not "approved". Without ready, the doc can't move to approved, and with approvals on it can't ship. Journals have no ready state.
+As soon as a document variation is written and the user hasn't asked for more changes, read its `requiredApprovals` from `get_design_doc` and make exactly one call:
 
-When approvals are on and the type needs approval for this size, call `request_design_doc_review` after marking ready. Agents cannot approve. Tell the user who needs to (the type's approvers) and what they're approving.
+- `features.approvals` off: there is no ready state. Make neither call.
+- `requiredApprovals` is 0: `mark_variation_ready`. That is the last step; don't ask anyone to approve it.
+- `requiredApprovals` is above 0: `request_design_doc_review`. Don't call `mark_variation_ready` first; the server refuses it when approval is required. Agents cannot approve. Tell the user how many approvals it needs and who can give them (the type's approvers).
+
+Don't hold either call back because questions are open: questions are tracked on their own, and ready means "the author is done", not "approved". Without ready or review, the doc can't move to approved, and with approvals on it can't ship. Journals have no ready state.
 
 ## 13. Review comments
 
@@ -129,4 +133,4 @@ The user says: "Write up adding SMS as a delivery channel. It touches the Sequen
 5. `create_design_doc` titled "SMS delivery channel".
 6. `write_design_doc_variation` writes the spec with `[[Sequencer]]`, `[[Delivery Worker]]` and `[[new: SMS Provider Adapter]]`. It describes the synchronous call as the user's proposal, not as decided, and cites ADR-0004. The brief's decision field says only what the spec decides.
 7. `add_design_doc_question` raises "Twilio or MessageBird?" with both as options, and a second question: "ADR-0004 rules out synchronous provider calls from the Delivery Worker. Follow it (queue plus callback), or ask the architecture owners to supersede it?"
-8. `mark_variation_ready` on the spec, then the agent tells the user that DD-0007 is ready for review and has two open questions, one of which needs the ADR's owners.
+8. `get_design_doc` shows `requiredApprovals: 0` on the spec, so `mark_variation_ready`. The agent tells the user that DD-0007 is ready and has two open questions, one of which needs the ADR's owners.

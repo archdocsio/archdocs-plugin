@@ -98,7 +98,7 @@ The size decides which variations are required and which need approval, so the u
 
 - Before the work: `writing-a-design-doc`, for the spec and plan.
 - During the work, including spikes, investigation, verification and live testing: `working-under-a-design-doc`. It records findings, decisions, pull requests and handoffs on the doc as they happen, so the next session can pick up from the doc instead of from chat.
-- When it's finished, merged or live: `closing-out-a-design-doc`.
+- When the authorized outcome is reached, or the user says it's finished, merged or live: `closing-out-a-design-doc`. Preparing the record is the agent's job; marking the doc shipped is the person's.
 
 ## If Archdocs says the plan doesn't include design docs
 
