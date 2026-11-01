@@ -45,6 +45,8 @@ When the request names none and the plan has tasks, the boundary is merge-ready.
 
 A finding that affects the plan goes on the doc as soon as you have it: a spike result, a failed check, a library that doesn't do what the plan assumed. With a journal, `add_journal_entry` with kind `blocker`, `test` or `note` and a one-line summary; put the detail in `body`. Without one, add it to the Deviations thread. Then tell the user.
 
+Some findings matter beyond this doc: an edge case, an assumption that turned out wrong, a failure mode the next change to the same code could repeat. After recording one in the journal, capture it for future work with `propose_knowledge_item`: pass `entryNumber` (the entry you just added), a one-sentence `statement` of what future work should know, a `kind` (usually `CONSTRAINT`), and the paths it applies to as `codeLocations`, narrower than the whole repository when you can. Pass `challengesItemId` when it contradicts an existing decision or constraint. Don't capture routine progress, test results or handoffs. The capture stays proposed until a person accepts it, and it never becomes an approved rule, so don't describe it as one. If the server rejects `entryNumber` (an older server), leave the finding in the journal, say once that it couldn't be captured, and don't retry.
+
 ## When a decision is made
 
 If it settles an open question, answer it with `answer_design_doc_question` and say who decided. Only answer when a person made the decision or you verified the fact yourself in code, docs or data. For a decision made in a meeting or a chat, pass `outside: true` and a link if there is one.
