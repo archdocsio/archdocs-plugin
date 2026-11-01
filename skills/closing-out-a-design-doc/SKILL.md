@@ -16,7 +16,7 @@ Find the design doc with `list_design_docs` (by number or text) and read it with
 If the work followed `working-under-a-design-doc`, much of the evidence already exists:
 
 - linked pull requests and recorded changes, in `get_design_doc`
-- the journal, when the doc has a variation with `contentMode: "JOURNAL"` (the Work Log): `get_journal_handoff` for the last handoff and what came after it, then `list_journal_entries` for the whole timeline. Decision entries are the deviations; blocker and test entries say what was tried; commit and PR references say where.
+- the journal, when the doc has a variation with `contentMode: "JOURNAL"` (the Work Log): `get_journal_handoff` for the last handoff and what came after it, then `list_journal_entries` for the whole timeline. Deviation entries are the deviations (`get_design_doc` also lists them under `deviations`, together with any thread entries); blocker and test entries say what was tried; commit and PR references say where.
 - answered questions, from `list_design_doc_questions`
 - without a journal, the "Deviations from the plan" thread on the plan variation, from `list_comment_threads` on the design doc (with evidence tracking off, PR links are there too)
 
