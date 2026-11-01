@@ -36,10 +36,12 @@ Environment:
   ARCHDOCS_EVAL_APPROVED_DD  Manually approved plan, for example DD-0004
 `;
 
-export function buildClaudeArgs({ mode, mcpConfigPath, pluginDir }) {
+export function buildClaudeArgs({ mode, mcpConfigPath, pluginDir, tools = [] }) {
   if (!['with', 'without'].includes(mode)) throw new Error(`Invalid mode: ${mode}`);
+  // Scenario tools are plain Claude Code tool names (Bash, Edit, Write); patterns would widen permissions in ways the scenario file can't review.
+  for (const tool of tools) if (!/^[A-Za-z]+$/.test(tool)) throw new Error(`Invalid scenario tool name: ${tool}`);
   const args = ['-p', '--output-format', 'stream-json', '--verbose', '--mcp-config', mcpConfigPath,
-    '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read',
+    '--strict-mcp-config', '--allowedTools', 'mcp__archdocs-eval', 'Read', ...tools,
     // Skip user-level plugins, hooks and settings so both modes see the same clean agent.
     '--setting-sources', 'project'];
   if (mode === 'with') args.push('--plugin-dir', pluginDir);
@@ -184,6 +186,51 @@ export async function mcpCall(endpoint, pat, name, args) {
   } catch (error) { throw new Error(redact(error.message, [pat])); }
 }
 
+// Compares server state after a run with scenario.expect.state. Every check reads through MCP, so it sees what the next agent would see.
+export async function checkState(expected, { invoke, designDocId }) {
+  const failures = [];
+  const doc = await invoke('get_design_doc', { id: designDocId });
+  for (const [typeKey, state] of Object.entries(expected.variationState ?? {})) {
+    const actual = doc.variations?.find((variation) => variation.typeKey === typeKey)?.state ?? 'absent';
+    if (actual !== state) failures.push(`State: variation ${typeKey} expected ${state}, got ${actual}`);
+  }
+  if (expected.designDocStatus !== undefined && doc.status !== expected.designDocStatus) {
+    failures.push(`State: design doc status expected ${expected.designDocStatus}, got ${doc.status}`);
+  }
+  if (expected.openQuestions !== undefined && doc.openQuestionCount !== expected.openQuestions) {
+    failures.push(`State: open questions expected ${expected.openQuestions}, got ${doc.openQuestionCount}`);
+  }
+  if (expected.journalKinds !== undefined || expected.journalLastKind !== undefined) {
+    const journal = doc.variations?.find((variation) => variation.contentMode === 'JOURNAL');
+    if (!journal) failures.push('State: the design doc has no journal variation');
+    else {
+      const { entries = [] } = await invoke('list_journal_entries', { designDocId, variation: journal.typeKey, limit: 100 });
+      const kinds = entries.map((entry) => entry.kind);
+      for (const kind of expected.journalKinds ?? []) {
+        if (!kinds.includes(kind)) failures.push(`State: journal has no ${kind} entry (kinds: ${kinds.join(', ') || 'none'})`);
+      }
+      // Entries come newest first.
+      if (expected.journalLastKind !== undefined && kinds[0] !== expected.journalLastKind) {
+        failures.push(`State: last journal entry expected ${expected.journalLastKind}, got ${kinds[0] ?? 'none'}`);
+      }
+    }
+  }
+  if (expected.threadResolved !== undefined) {
+    const threads = await invoke('list_comment_threads', { designDocId });
+    const first = (Array.isArray(threads) ? threads : threads.threads ?? [])[0];
+    if (!first) failures.push('State: the design doc has no comment thread');
+    else if (Boolean(first.resolved) !== expected.threadResolved) failures.push(`State: first thread ${expected.threadResolved ? 'not resolved' : 'resolved'}`);
+  }
+  if (expected.criteriaOutcomes !== undefined) {
+    const { criteria = [] } = await invoke('get_verification_status', { designDocId });
+    for (const [key, outcome] of Object.entries(expected.criteriaOutcomes)) {
+      const actual = criteria.find((criterion) => criterion.key === key)?.outcome ?? 'absent';
+      if (actual !== outcome) failures.push(`State: criterion ${key} expected ${outcome}, got ${actual}`);
+    }
+  }
+  return failures;
+}
+
 export async function setupScenario(scenario, { endpoint, pat, tempDir, env = process.env, call = mcpCall, fetchImpl = fetch }) {
   const setup = scenario.setup ?? 'none';
   if (setup === 'none') return {};
@@ -223,9 +270,87 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
     await writeFile(planFile, '# Session Cache eviction change\n\n## Goal\nEvict expired sessions from Session Cache.\n\n## Implementation plan\n1. Read the current eviction code and tests.\n2. Add expiry checks before returning cached sessions.\n3. Test expired and active sessions.\n');
     return { planFile };
   }
-  if (!['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries'].includes(setup)) throw new Error(`Unknown setup: ${setup}`);
+  const docSetups = ['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-failing-test-repo',
+    'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria'];
+  if (!docSetups.includes(setup)) throw new Error(`Unknown setup: ${setup}`);
   const standard = await invoke('list_design_doc_types', {});
-  const doc = await invoke('create_design_doc', { title: 'SMS delivery channel', size: 'STANDARD' });
+  // large-doc leaves readiness to the agent under test; every other fixture arrives with spec and plan ready.
+  const doc = await createDocWithSpecAndPlan(invoke, standard, setup === 'large-doc' ? { size: 'LARGE', ready: false } : {});
+  const vars = { designDocNumber: doc.displayNumber, designDocId: doc.id };
+  if (setup === 'with-open-question') await invoke('add_design_doc_question', {
+    designDocId: doc.id, text: 'Twilio or MessageBird for SMS?',
+    context: 'The SMS provider has not been decided.', variation: 'spec',
+    options: [{ label: 'Twilio' }, { label: 'MessageBird' }],
+  });
+  if (setup === 'with-review-thread') {
+    const thread = await invoke('create_comment_thread', {
+      designDocId: doc.id, anchorField: 'spec',
+      content: 'Reviewer: the spec never says what happens when the SMS provider rejects a number. Add a failure path.',
+    });
+    return { ...vars, threadId: thread.id };
+  }
+  if (setup === 'with-failing-test-repo') {
+    await writeFailingTestRepo(tempDir);
+    return { ...vars, repoDir: tempDir };
+  }
+  if (setup === 'with-authorized-criteria') {
+    const { createHash } = await import('node:crypto');
+    const attest = (leafId, statement, by) => ({
+      kind: 'attest', leafId, statement, statementHash: createHash('sha256').update(statement).digest('hex'), by,
+      binding: { start: 'design_doc', steps: [] },
+    });
+    const baseline = await invoke('propose_acceptance_criteria', {
+      designDocId: doc.id, reason: 'Eval fixture',
+      criteria: [
+        { key: 'AC-1', title: 'Sequencer SMS unit tests pass', required: true, requirement: attest('ac-1', 'Unit tests for the Sequencer SMS path pass locally.', 'HUMAN_OR_AGENT') },
+        { key: 'AC-2', title: 'Product owner confirmed the SMS copy', required: true, requirement: attest('ac-2', 'Product owner confirmed the SMS copy.', 'HUMAN') },
+      ],
+    });
+    if (!baseline.id || !baseline.version) throw new Error('propose_acceptance_criteria did not return a baseline id and version');
+    // Agents never authorize criteria, so the fixture authorizes over REST as the eval person.
+    const client = restClient({ ...resetOptions(scenario, env), fetchImpl });
+    await client.login();
+    await client.request(`/design-docs/${encodeURIComponent(doc.id)}/criteria/baselines/${encodeURIComponent(baseline.id)}/authorize`, { method: 'POST', body: { expectedVersion: baseline.version } });
+    return vars;
+  }
+  if (['with-journal-entries', 'with-stale-test-entry', 'with-done-handoff'].includes(setup)) {
+    // A journal with a saved handoff, left by a previous session. Setup never approves anything.
+    const journal = standard.types?.find((type) => type.contentMode === 'JOURNAL' && type.enabled);
+    if (!journal) throw new Error('Eval org needs an enabled Journal type such as the Work Log. Run evals/setup-local-orgs.mjs.');
+    const entry = (args) => invoke('add_journal_entry', { designDocId: doc.id, variation: journal.key, ...args });
+    if (setup === 'with-done-handoff') {
+      await entry({ kind: 'progress', summary: 'Sequencer SMS path implemented and merged in PR #42.', references: [{ kind: 'PULL_REQUEST', repo: 'example/cadence', number: 42 }] });
+      await entry({ kind: 'progress', summary: 'Delivery Worker SMS path implemented and merged in PR #42; delivery events batched every 5 seconds.' });
+      await entry({
+        kind: 'handoff', summary: 'Session handoff',
+        handoff: { done: 'Sequencer and Delivery Worker SMS paths (E-1, E-2); PR #42 merged.', blocked: '', next: 'Nothing left in the plan.' },
+        references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }],
+      });
+      return { ...vars, journalVariation: journal.key };
+    }
+    await entry({ kind: 'progress', summary: 'Sequencer SMS path implemented; its unit tests pass locally.' });
+    await entry({ kind: 'blocker', summary: 'Event Store stream client drops events under backpressure, so streaming delivery events as planned does not hold.' });
+    if (setup === 'with-stale-test-entry') await entry({
+      kind: 'test', summary: 'node --test passes at 3f9c2d1 (Sequencer SMS path).',
+      references: [{ kind: 'COMMIT', repo: 'example/cadence', sha: '3f9c2d1e4b5a6c7d8e9f0a1b2c3d4e5f6a7b8c9d' }],
+    });
+    await entry({
+      kind: 'handoff', summary: 'Session handoff',
+      handoff: {
+        done: 'Sequencer SMS path (E-1).',
+        blocked: 'Event Store streaming drops events under backpressure (E-2). Batching versus streaming is undecided.',
+        next: 'Decide batching versus streaming for the Event Store, then extend the Delivery Worker.',
+      },
+      references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }],
+    });
+    return { ...vars, journalVariation: journal.key };
+  }
+  return vars;
+}
+
+// The SMS delivery doc every doc fixture starts from. Readiness follows the org's rules; setup never approves anything.
+async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', ready = true } = {}) {
+  const doc = await invoke('create_design_doc', { title: 'SMS delivery channel', size });
   if (!doc.id || !doc.displayNumber) throw new Error('create_design_doc did not return id and displayNumber');
   const fixture = {
     spec: '# SMS delivery channel\n\nAdd SMS delivery through the Sequencer and Delivery Worker. The provider is undecided between Twilio and MessageBird.\n',
@@ -238,35 +363,26 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
       .map((field) => [field.key, fixture[variation].split('\n').slice(2).join('\n').trim()]));
     await invoke('write_design_doc_variation', { designDocId: doc.id, variation, content: fixture[variation], brief });
     // Both readiness and review require the approvals feature, even in lean orgs.
-    if (standard.features?.approvals) {
-      const action = type.approvalFor?.includes('STANDARD') ? 'request_design_doc_review' : 'mark_variation_ready';
+    if (ready && standard.features?.approvals) {
+      const action = type.approvalFor?.includes(size) ? 'request_design_doc_review' : 'mark_variation_ready';
       await invoke(action, { designDocId: doc.id, variation });
     }
   }
-  if (setup === 'with-open-question') await invoke('add_design_doc_question', {
-    designDocId: doc.id, text: 'Twilio or MessageBird for SMS?',
-    context: 'The SMS provider has not been decided.', variation: 'spec',
-    options: [{ label: 'Twilio' }, { label: 'MessageBird' }],
-  });
-  if (setup === 'with-journal-entries') {
-    // A journal with a saved handoff, left by a previous session. Setup never approves anything.
-    const journal = standard.types?.find((type) => type.contentMode === 'JOURNAL' && type.enabled);
-    if (!journal) throw new Error('Eval org needs an enabled Journal type such as the Work Log. Run evals/setup-local-orgs.mjs.');
-    const entry = (args) => invoke('add_journal_entry', { designDocId: doc.id, variation: journal.key, ...args });
-    await entry({ kind: 'progress', summary: 'Sequencer SMS path implemented; its unit tests pass locally.' });
-    await entry({ kind: 'blocker', summary: 'Event Store stream client drops events under backpressure, so streaming delivery events as planned does not hold.' });
-    await entry({
-      kind: 'handoff', summary: 'Session handoff',
-      handoff: {
-        done: 'Sequencer SMS path (E-1).',
-        blocked: 'Event Store streaming drops events under backpressure (E-2). Batching versus streaming is undecided.',
-        next: 'Decide batching versus streaming for the Event Store, then extend the Delivery Worker.',
-      },
-      references: [{ kind: 'ENTRY', number: 1 }, { kind: 'ENTRY', number: 2 }],
-    });
-    return { designDocNumber: doc.displayNumber, journalVariation: journal.key };
-  }
-  return { designDocNumber: doc.displayNumber };
+  return doc;
+}
+
+// A one-commit repository whose only test fails: formatRecipient should strip spaces from the number but returns it unchanged.
+async function writeFailingTestRepo(dir) {
+  const { execFileSync } = await import('node:child_process');
+  await mkdir(path.join(dir, 'src'), { recursive: true });
+  await mkdir(path.join(dir, 'test'), { recursive: true });
+  await writeFile(path.join(dir, 'package.json'), JSON.stringify({ name: 'cadence-sms', type: 'module', scripts: { test: 'node --test' } }, null, 2) + '\n');
+  await writeFile(path.join(dir, 'src', 'sms.mjs'), '// Normalizes a recipient number for the SMS provider.\nexport function formatRecipient(number) {\n  return number;\n}\n');
+  await writeFile(path.join(dir, 'test', 'sms.test.mjs'), "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { formatRecipient } from '../src/sms.mjs';\n\ntest('formats recipient', () => {\n  assert.equal(formatRecipient(' +1 555 0100 '), '+15550100');\n});\n");
+  const git = (...args) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' });
+  git('init', '-q');
+  git('-c', 'user.name=Eval', '-c', 'user.email=eval@archdocs.test', 'add', '.');
+  git('-c', 'user.name=Eval', '-c', 'user.email=eval@archdocs.test', 'commit', '-q', '-m', 'feat: sms recipient formatting');
 }
 
 export function runClaude(args, prompt, { cwd, secrets = [], spawnProcess = spawn, platform = process.platform } = {}) {
@@ -313,7 +429,7 @@ export async function runScenario(scenario, mode, n, resultsDir, {
       'archdocs-eval': { type: 'http', url: endpoint, headers: { Authorization: `Bearer ${pat}` } },
     } }), { mode: 0o600 });
     const prompt = substitute(scenario.prompt, vars);
-    const args = buildClaudeArgs({ mode, mcpConfigPath, pluginDir: root });
+    const args = buildClaudeArgs({ mode, mcpConfigPath, pluginDir: root, tools: scenario.tools });
     const result = await execute(args, prompt, { cwd: tempDir, secrets });
     const stdout = redact(result.stdout, secrets);
     const file = path.join(resultsDir, `${scenario.id}.${mode}.${n}.jsonl`);
@@ -328,6 +444,10 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     if (!events.some((event) => event.type === 'result')) grade.failures.push('Claude emitted no final result event');
     if (events.some((event) => event.type === 'result' && (event.is_error || (event.subtype && event.subtype !== 'success')))) grade.failures.push('Claude reported an unsuccessful result');
     if (result.code !== 0) grade.failures.push(`Claude exited with ${result.code ?? result.signal}: ${redact(result.stderr, secrets).trim()}`);
+    if (scenario.expect.state) {
+      if (!vars.designDocId) grade.failures.push('State checks need a fixture that creates a design doc');
+      else grade.failures.push(...await checkState(scenario.expect.state, { invoke: (name, args) => call(endpoint, pat, name, args), designDocId: vars.designDocId }));
+    }
     grade.pass = grade.failures.length === 0;
     return grade;
   } catch (error) { throw new Error(redact(error.message, secrets)); }
