@@ -362,8 +362,15 @@ test('with-authorized-criteria proposes an agent-permitted and a human-only atte
     return Response.json(route === '/auth/login' ? { token: 'jwt' } : { id: 'baseline-1', version: 1, status: 'AUTHORIZED' });
   };
   const call = fixtureCall(calls, { extra: (name) => (name === 'propose_acceptance_criteria' ? { id: 'baseline-1', version: 1, status: 'DRAFT' } : undefined) });
-  const vars = await setupScenario({ setup: 'with-authorized-criteria', org: 'full' }, { ...base, tempDir: await temporary(t), call, fetchImpl });
-  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture' });
+  const tempDir = await temporary(t);
+  const vars = await setupScenario({ setup: 'with-authorized-criteria', org: 'full' }, { ...base, tempDir, call, fetchImpl });
+  assert.deepEqual(vars, { designDocNumber: 'DD-0009', designDocId: 'fixture', repoDir: tempDir });
+  // The evidence scenario's checkout passes its own test.
+  const { execFileSync } = await import('node:child_process');
+  // A nested node --test skips itself when it inherits the parent runner's context.
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  assert.match(execFileSync('node', ['--test'], { cwd: tempDir, encoding: 'utf8', env }), /# fail 0/);
   const proposed = calls.find((call) => call.name === 'propose_acceptance_criteria').args;
   assert.equal(proposed.designDocId, 'fixture');
   const [agent, human] = proposed.criteria;
