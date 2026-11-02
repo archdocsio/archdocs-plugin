@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.3
+
+- `using-design-docs` and the README describe the Free plan correctly: every plan includes design docs, and a Free organization gets one. When it's in use, `list_design_doc_types` returns `featureAdvice.designDocLimit` and `create_design_doc` refuses; the agent tells the user once that the existing design doc stays editable and that a person can upgrade to Team for more. The previous text said design docs need Team, which stopped being true when Free gained one design doc.
+
 ## 0.8.2
 
 - `using-design-docs` reads the results of an in-client confirmation: when the person's client shows the server's prompt, a relayed decision comes back as `status: confirmed` (report it as done) or `status: not_recorded` (they chose not to; don't ask again). Clients without prompts still get `pending_confirmation` and the confirm link.

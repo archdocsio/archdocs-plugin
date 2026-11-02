@@ -33,8 +33,6 @@ codex plugin remove archdocs@archdocs
 codex plugin marketplace remove archdocs
 ```
 
-Design docs need an Archdocs Team plan or higher. On a Free plan the agent says so once and carries on without one.
-
 ### Cursor
 
 The repository is a Cursor plugin (`.cursor-plugin/plugin.json`) with the same skills, commands and MCP server. Until it's listed in the Cursor Marketplace, add the pieces by hand:
@@ -47,6 +45,10 @@ The repository is a Cursor plugin (`.cursor-plugin/plugin.json`) with the same s
 
    Cursor opens the Archdocs sign-in the first time it connects.
 2. Copy the folders inside `skills/` into `.cursor/skills/` in your project, or `~/.cursor/skills/` for every project.
+
+### Plans
+
+Every Archdocs plan includes design docs. A Free organization gets one, and Team and above have no limit. When a Free organization's design doc is already in use, the agent says so once, mentions that a person can upgrade to Team for more, and carries on without one. Importing existing design docs needs Team or above.
 
 ## Commands
 

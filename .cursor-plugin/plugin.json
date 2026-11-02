@@ -1,7 +1,7 @@
 {
   "name": "archdocs",
   "displayName": "Archdocs",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Design docs for coding agents: when to write one, how to write it to your team's standard, and how to close it out with evidence.",
   "author": { "name": "ArchDocs" },
   "homepage": "https://archdocs.io",

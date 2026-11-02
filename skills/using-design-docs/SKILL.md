@@ -131,9 +131,9 @@ Archdocs records the decision in the person's name, with their statement and you
 - During the work, including spikes, investigation, verification and live testing: `working-under-a-design-doc`. It records findings, decisions, pull requests and handoffs on the doc as they happen, so the next session can pick up from the doc instead of from chat.
 - When the authorized outcome is reached, or the user says it's finished, merged or live: `closing-out-a-design-doc`. Preparing the record is the agent's job; deciding to ship is the person's, and they can tell you to record it.
 
-## If Archdocs says the plan doesn't include design docs
+## If Archdocs says the plan's design doc is in use
 
-Design docs need a Team plan or higher. On a Free plan, `create_design_doc` refuses with a message saying so. Tell the user once, in a sentence, and carry on with the work. Don't retry, don't propose design docs again in this session, and don't write one as a local file instead. Everything else in Archdocs (diagrams, catalog objects, ADRs) still works.
+Every plan includes design docs. A Free organization gets one, and Team and above have no limit. When the Free design doc is already in use, `list_design_doc_types` returns `featureAdvice.designDocLimit` and `create_design_doc` refuses with a message saying so. Tell the user once, in a sentence, that the organization's Free design doc is in use, that it stays editable, and that a person can upgrade to Team for more, and carry on with the work. Don't retry, don't propose design docs again in this session, and don't write one as a local file instead. Everything else in Archdocs (diagrams, catalog objects, ADRs) still works.
 
 ## If the Archdocs tools are missing
 
