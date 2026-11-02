@@ -171,3 +171,21 @@ Local API on the monorepo branch `agent-follow-through`, the full org on a BUSIN
 | delegated-run-recorded (new, full, Bash/Edit/Write/Agent) | 0/3 | 3/3 |
 
 Without the plugin, five of six agents fixed the bug, ran the tests and committed, then stopped without writing anything on the design doc. One `checkpoints-recorded` agent did write a `test` entry and a handoff, both naming the commit. With the plugin, every agent added a `progress` entry with a `COMMIT` reference right after committing, followed by a handoff. On `delegated-run-recorded` each also wrote a `test` entry after reviewing the subagent's change and running the tests itself, before committing. The hooks' per-session state ended with no pending checkpoints in all six runs, so the turn-end reminder never had to fire: the agents had recorded everything by the time they stopped. These runs don't separate the skill text from the hooks.
+
+## Results for the design-doc diagrams revision (2026-11-02)
+
+Local API on port 4500 from the monorepo branch `feat/design-doc-diagrams` (archdocsio/monorepo#16, ea4e7c91), the full org on a BUSINESS grant with the Work Log, `--setting-sources project`, 3 runs per mode. "Round 1" is this revision's first draft; "round 2" adds the `writing-a-design-doc` description trigger for a design doc's diagrams and the close-out wording on proposed objects.
+
+| Scenario | Without plugin | With plugin, round 1 | With plugin, round 2 |
+| --- | --- | --- | --- |
+| spec-draws-proposed-diagram (new, full) | 0/3 | 3/3 | 3/3 |
+| remove-proposed-diagram (new, full) | 0/3 | 1/3 | 3/3 |
+| close-out-updates-living-canvas (new, full) | 0/3 | 0/3 | 3/3 |
+| spec-for-multi-service-change | not run | 3/3 | not run |
+| full-org-close-out | not run | 3/3 | 3/3 |
+| lean-org-close-out | not run | not run | 3/3 |
+| living-what-update | not run | 3/3 | not run |
+
+Without the plugin, no agent drew a proposed-design diagram, deleted the unwanted one, or touched the living canvas at close-out. In round 1 no `remove-proposed-diagram` agent loaded a skill: the failing two took the embed out of the spec, then stopped and offered to delete the diagram "if nothing else uses it". Every round 1 close-out agent loaded `closing-out-a-design-doc`, shipped, and listed the "Delivery path" canvas as still to update, waiting for a decision on the proposed Twilio object. In round 2 every removal agent dropped the embed before `delete_doc`, and every close-out agent added Twilio to the canvas and recorded it before writing the evidence.
+
+Four regression runs edited the seeded Cadence canvas. `restoreLibrary` put it back each time; after the batch the full org's library held only "Cadence Platform Overview", with no SMS or Twilio nodes.

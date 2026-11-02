@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- `writing-a-design-doc` draws the proposed design. The system as it is still comes from embedding the living canvas. The proposed design goes in a diagram owned by the design doc (`create_doc` with `designDocId`), embedded next to it. The agent draws one when the change touches two or more catalog objects or changes an interface or data flow between them, or when a picture helps. Existing parts use their exact catalog names and new parts use their `[[new: ...]]` names. The agent finds the doc's diagrams in `get_design_doc`'s `diagrams`, changes one with `update_doc` or `patch_doc`, and removes one by dropping its embed and then calling `delete_doc`. When `create_doc` refuses, the agent says so and describes the design in text, and never draws it in a library canvas. The skill's description now triggers on adding, changing or removing a design doc's diagrams. The old "a person can add one in the app" fallback is gone.
+- `closing-out-a-design-doc` brings the living docs up to date with what shipped before writing the evidence. The design doc's own diagrams stay as the plan. Library canvases are changed with `patch_doc` or `update_doc`, and object descriptions with `update_object`. A part that is still a proposed object is drawn as a plain node until a person accepts it. Each update is recorded with `record_architecture_change`.
+- `working-under-a-design-doc` and `using-design-docs` name the tools for updating a living doc (`get_doc`, `patch_doc`, `update_doc`, `update_object`) and keep proposed-design diagrams out of it.
+- Evals: new `spec-draws-proposed-diagram`, `remove-proposed-diagram` and `close-out-updates-living-canvas` scenarios, with the `with-proposed-diagrams` and `with-living-canvas` fixtures. The grader adds `everyCallArgMatches` and the state checks `diagrams` and `docMatches`. Expectations can name fixture values. Scenarios that may edit library canvases set `restoreLibrary`, which snapshots the library before the run and restores it afterwards.
+- Needs the Archdocs server with design-doc diagrams over MCP (archdocsio/monorepo#16). Release this version only after that server is live.
+
 ## 0.9.0
 
 - `using-design-docs` relays more of a person's decisions: abandoning (`abandon_design_doc`) or deleting (`delete_design_doc`) a design doc, deciding a review request (`decide_review`), discarding draft acceptance criteria (`discard_acceptance_criteria`), accepting or dropping a proposed object (`decide_proposed_object`), and retiring, restoring, reanchoring, marking reviewed or adopting a knowledge item (`change_knowledge_item`, `resolve_knowledge_relation`). When work stopped, the agent abandons rather than deletes; it deletes only a doc the person names.

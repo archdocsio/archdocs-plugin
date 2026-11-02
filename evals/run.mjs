@@ -425,10 +425,10 @@ async function canvasYaml(invoke, title, objectNames, extraNodes, relationships)
   const nodes = objectNames.map((name) => {
     const object = objects.find((candidate) => candidate.name === name);
     if (!object?.id) throw new Error(`Eval org needs the Cadence "${name}" object. Run evals/setup-local-orgs.mjs.`);
-    return `  - { id: ${name.replace(/[^A-Za-z]/g, '')}, type: reference, referenceType: object, targetId: ${object.id}, label: ${name} }`;
+    return `  - { id: ${name.replace(/[^A-Za-z]/g, '')}, type: reference, referenceType: object, targetId: ${object.id}, label: ${JSON.stringify(name)} }`;
   });
-  return ['apiVersion: archdocs/v1', `title: ${title}`, 'layout:', '  algorithm: layered', '  direction: right', 'nodes:', ...nodes, ...extraNodes,
-    'relationships:', ...relationships.map(([from, to, label]) => `  - { from: ${from}, to: ${to}, label: ${label} }`)].join('\n') + '\n';
+  return ['apiVersion: archdocs/v1', `title: ${JSON.stringify(title)}`, 'layout:', '  algorithm: layered', '  direction: right', 'nodes:', ...nodes, ...extraNodes,
+    'relationships:', ...relationships.map(([from, to, label]) => `  - { from: ${from}, to: ${to}, label: ${JSON.stringify(label)} }`)].join('\n') + '\n';
 }
 
 const LIVING_CANVAS_NAME = 'Delivery path';

@@ -1,6 +1,6 @@
 ---
 name: writing-a-design-doc
-description: Use when creating or editing an Archdocs design doc, writing its spec or implementation plan, raising or answering its open questions, or moving an existing plan file (Claude Code plan, Spec Kit plan.md, Kiro tasks.md, superpowers plan) into Archdocs.
+description: Use when creating or editing an Archdocs design doc, adding, changing or removing one of its diagrams, writing its spec or implementation plan, raising or answering its open questions, or moving an existing plan file (Claude Code plan, Spec Kit plan.md, Kiro tasks.md, superpowers plan) into Archdocs.
 ---
 
 # Writing a design doc

@@ -61,7 +61,7 @@ You don't need the commands. The skills load on their own when you talk about pl
 
 ## Skills
 
-`using-design-docs` decides between a design doc, an architecture decision record, an update to an existing diagram, or nothing. It checks before an agent starts planning or building a change, reads the rule from the Archdocs server, and proposes a design doc instead of creating one unasked. A design doc is the frozen record of one change. Diagrams and catalog objects describe the system as it is now.
+`using-design-docs` decides between a design doc, an architecture decision record, an update to an existing diagram, or nothing. It checks before an agent starts planning or building a change, reads the rule from the Archdocs server, and proposes a design doc instead of creating one unasked. A design doc is the frozen record of one change, and its own diagrams show the proposed design. Library diagrams and catalog objects describe the system as it is now.
 
 `writing-a-design-doc` covers the work before it starts. It gathers the engineering context for the objects the change touches (standing ADRs, earlier design docs, open questions), raises a conflict with a standing decision as a tracked question instead of resolving it, reads your organization's variation types and follows their instructions, links real catalog objects, imports plan files from Claude Code, Spec Kit or Kiro, and turns every undecided point into a tracked question instead of a guess.
 
