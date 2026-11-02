@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0
+
+- `using-design-docs` relays more of a person's decisions: abandoning (`abandon_design_doc`) or deleting (`delete_design_doc`) a design doc, deciding a review request (`decide_review`), discarding draft acceptance criteria (`discard_acceptance_criteria`), accepting or dropping a proposed object (`decide_proposed_object`), and retiring, restoring, reanchoring, marking reviewed or adopting a knowledge item (`change_knowledge_item`, `resolve_knowledge_relation`). When work stopped, the agent abandons rather than deletes; it deletes only a doc the person names.
+- `closing-out-a-design-doc` abandons a design doc through `abandon_design_doc` with the person's reason and words, and records proposed object decisions with `decide_proposed_object`, instead of sending the user to the app.
+- `writing-a-design-doc` changes a design doc's title, size, space, folder or owner with `update_design_doc`, fixes an open question with `update_design_doc_question`, and reopens an answered or dropped question with `reopen_design_doc_question`.
+- `working-under-a-design-doc` gains "Correcting what you recorded": unlink a mislinked pull request or Linear item, remove a wrong architecture change, edit or delete the agent's own comment, remove a criterion from an unauthorized draft, edit or cancel a drafted Linear proposal, and correct journal entries with a `correction` entry.
+- `using-design-docs` adds code locations to the design doc being worked on with `add_code_location`, and sends bug reports, feature requests and feedback about Archdocs with `submit_feedback` when the user asks.
+- Needs the Archdocs server from 2026-11-02 or later.
+
 ## 0.8.4
 
 - `writing-a-design-doc` explains that a refused variation write saves nothing, so questions and comments aimed at that variation fail until it is written. When the server names a line it can't save, the agent fixes that line and resends the whole write.

@@ -70,9 +70,9 @@ Call `list_design_doc_questions`. Some questions will have been settled during t
 
 ## 7. Things only people do
 
-Proposed objects (`[[new: ...]]` mentions) are accepted into the catalog or dropped by a person at ship time in the app. List them for the user.
+Proposed objects (`[[new: ...]]` mentions) are accepted into the catalog or dropped by a person at ship time. List them for the user. When they tell you, record it with `decide_proposed_object` and their words in `decision.statement`; accepting needs the object kind (`list_object_kinds`) and can rename the object.
 
-Approvals and the ship decision belong to people. They can make them in the app or tell you, and you record what they said (see `using-design-docs`, "Decisions a person makes through you"). Opening amendments, superseding and abandoning are done by people in the app. When work was abandoned, tell the user to mark the design doc abandoned with a reason there, and don't write evidence for work that didn't happen.
+Approvals and the ship decision belong to people. They can make them in the app or tell you, and you record what they said (see `using-design-docs`, "Decisions a person makes through you"). Opening amendments and superseding are done by people in the app. When work was abandoned, ask the user whether to mark the design doc abandoned and why. On their yes, call `abandon_design_doc` with their reason and their words in `decision.statement`. Don't write evidence for work that didn't happen.
 
 ## 8. Shipping
 

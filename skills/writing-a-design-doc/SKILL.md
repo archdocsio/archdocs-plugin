@@ -43,7 +43,7 @@ It also returns `features` and `featureAdvice`. Don't call a tool for a feature 
 
 ## 4. Create
 
-`create_design_doc` needs a title and a size. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened. If the user named a space or an owner, pass `spaceId` or `ownerUserId`; otherwise leave them out and the doc belongs to the person whose token you're using.
+`create_design_doc` needs a title and a size. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened. If the user named a space or an owner, pass `spaceId` or `ownerUserId`; otherwise leave them out and the doc belongs to the person whose token you're using. To change the title, size, space, folder or owner later, use `update_design_doc`; with sizes on, a size change is still the user's choice.
 
 ## 5. Write the variations that come before the work
 
@@ -75,7 +75,7 @@ Call `list_design_doc_questions` before you write, so you don't contradict a que
 
 Answer with `answer_design_doc_question` only when a person made the decision or you checked the fact yourself (in code, docs or data). Say who decided in the answer. When the decision was made outside the app, in a meeting or a chat, pass `outside: true` and a link if there is one. When you only have an opinion or a guess, don't answer. Add it to the question's discussion with `create_comment_thread` (with the question's id) or `reply_to_comment_thread`, and leave the question open.
 
-When a person changes a decision on a question that is already answered, call `answer_design_doc_question` again with `amend: true` and the new answer, saying who changed it. The earlier answer stays in the history. A dropped question can only be reopened by a person in the app.
+When a person changes a decision on a question that is already answered, call `answer_design_doc_question` again with `amend: true` and the new answer, saying who changed it. The earlier answer stays in the history. When the user says an answered or dropped question needs deciding again, reopen it with `reopen_design_doc_question`. To fix the wording, context or options of an open question, use `update_design_doc_question` instead of adding a second question.
 
 `drop_design_doc_question` needs a reason and the user's agreement.
 

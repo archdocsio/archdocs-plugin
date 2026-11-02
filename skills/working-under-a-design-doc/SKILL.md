@@ -115,6 +115,19 @@ With `features.evidenceTracking` on, call `record_architecture_change` for each 
 
 When the change makes a living doc wrong (a diagram missing a new queue, an object description naming the old data store), update that doc too. The design doc records why; the living doc shows what's true now.
 
+## Correcting what you recorded
+
+When something you recorded on the doc turns out wrong, fix the record instead of leaving it or adding a duplicate:
+
+- A pull request linked to the wrong doc: `unlink_pull_request`.
+- An architecture change recorded by mistake: `remove_architecture_change`.
+- Your own comment: `update_comment` or `delete_comment`.
+- A criterion that shouldn't be in a draft that isn't authorized yet: `remove_draft_criterion`. Discarding the whole draft is a person's decision (`discard_acceptance_criteria`).
+- A Linear issue or project linked by mistake: `unlink_linear_issue` or `unlink_linear_project`. A drafted Linear proposal that isn't confirmed yet: `update_linear_proposal_item` or `cancel_linear_proposal`.
+- A journal entry: add a `correction` entry with `correctsEntry`. Entries are never edited.
+
+Say what you corrected in the journal when it changes what the record claimed.
+
 ## When the plan itself must change
 
 Don't rewrite the plan to match what you did. An approved plan is frozen, and a draft plan is worth more as the record of what was intended. If the plan should say something different, tell the user. A draft plan can be edited (read it with `get_design_doc` first and keep anyone else's edits). An approved plan needs a person to open an amendment in the app; see `writing-a-design-doc`.
