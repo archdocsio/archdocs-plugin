@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.11.0
+
+- `working-under-a-design-doc` records the guidance that shaped a change. When the design doc's `features.contextReferences` is true, the agent records material `get_task_context` results with `record_context_use`. Each record carries a one-sentence reason and the result's `pin` as `expectedPin`, so a source that changed after it was read is refused with its current text instead of being saved silently. Treatments go through `set_context_treatment`, and constraints that deserve a check are linked or proposed with `link_context_check`. On resume the agent reads `contextUsed` from the design doc or handoff. A recorded reference is described as reported use, never as approval of the source or proof of compliance. When the capability is missing, a journal note is not presented as a structured reference.
+- `closing-out-a-design-doc` reads `list_context_used`. A changed source or a check pinned to an earlier criterion version goes into the evidence as an open item. "No check linked" is not a failure.
+- Needs the Archdocs server with context references (DD-0033 Delivery A). Release this version only after that server is live.
+
 ## 0.10.0
 
 - `writing-a-design-doc` draws the proposed design. The system as it is still comes from embedding the living canvas. The proposed design goes in a diagram owned by the design doc (`create_doc` with `designDocId`), embedded next to it. The agent draws one when the change touches two or more catalog objects or changes an interface or data flow between them, or when a picture helps. Existing parts use their exact catalog names and new parts use their `[[new: ...]]` names. The agent finds the doc's diagrams in `get_design_doc`'s `diagrams`, changes one with `update_doc` or `patch_doc`, and removes one by dropping its embed and then calling `delete_doc`. When `create_doc` refuses, the agent says so and describes the design in text, and never draws it in a library canvas. The skill's description now triggers on adding, changing or removing a design doc's diagrams. The old "a person can add one in the app" fallback is gone.

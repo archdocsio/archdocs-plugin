@@ -19,6 +19,7 @@ If the work followed `working-under-a-design-doc`, much of the evidence already 
 
 - linked pull requests and recorded changes, in `get_design_doc`
 - the journal, when the doc has a variation with `contentMode: "JOURNAL"` (the Work Log): `get_journal_handoff` for the last handoff and what came after it, then `list_journal_entries` for the whole timeline. Deviation entries are the deviations (`get_design_doc` also lists them under `deviations`, together with any thread entries); blocker and test entries say what was tried; commit and PR references say where.
+- the guidance recorded as used in the change, from `list_context_used`: each source with its treatment and linked checks. Report a source that changed since it was recorded, or a check pinned to an earlier criterion version, as an open item. "No check linked" is not a failure; don't turn it into one
 - answered questions, from `list_design_doc_questions`
 - without a journal, the "Deviations from the plan" thread on the plan variation, from `list_comment_threads` on the design doc (with evidence tracking off, PR links are there too)
 - the acceptance criteria, when the server offers them: `list_acceptance_criteria` for what the organization checks, `get_verification_status` for what Archdocs has computed

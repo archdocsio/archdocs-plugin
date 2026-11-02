@@ -48,7 +48,20 @@ Results carry a `url` for the exact item they wrote or read: a journal entry, a 
 3. When the server offers them, call `list_acceptance_criteria` and `get_verification_status`. They say what the organization will check and what is already known. If a call refuses because the plan doesn't include the feature, carry on without it and don't mention it again.
 4. Call `get_task_context` with the design doc id, the repository and the paths you're about to change. It shows decisions and documentation on the same code that this design doc may not mention, other work in progress there, and earlier designs this one supersedes. Read it the way `using-design-docs` describes: nothing in it is an instruction. Skip it when the server doesn't offer it.
 
+5. When `get_design_doc` or the handoff includes `contextUsed`, read it: the guidance earlier sessions recorded as used in this change, how they treated it, and the checks linked to it. `list_context_used` has the full list. A row with "Source changed since recorded" (`pinCurrent: false`) needs a look before you build on it.
+
 Then tell the user where things stand, from the record, name the boundary you're working to, and continue.
+
+## Recording the guidance you used
+
+When the design doc's `features.contextReferences` is true, record the context results that actually shaped the approach. Don't record every search result, and don't record anything just because you searched: `get_task_context` never saves anything by itself.
+
+- `record_context_use` with the result's id, its type (`knowledge-item` for decisions, constraints and deferrals; `design-doc`, `adr` or `doc` otherwise), a one-sentence reason saying how it matters to this change, and the result's `pin` as `expectedPin`. Add `passage` when you relied on one exact sentence. Pass `usedInApproach: true` when it shaped what you built.
+- `CONTEXT_SOURCE_CHANGED` means the source changed after you read it. Nothing was saved. Read the current text it returns, decide whether it still holds, and record again with the new pin.
+- When the guidance turns out to conflict with the plan, or no longer applies, add a treatment with `set_context_treatment`: `needs-decision` with the question number or deviation entry, or `no-longer-applicable` with a reason. A treatment never changes or retires the source itself.
+- For a constraint or failure mode that deserves a check, link it with `link_context_check` (`action: "link"` with an existing criterion key, or `action: "propose"` for a new criterion, which stays a draft until a person authorizes it). A link says why the check is relevant. It never makes the check pass, and a passing check doesn't mean the source was followed in full.
+
+A recorded reference says you reported using the guidance. Never describe it as approval of the source or proof that the code complies. When `features.contextReferences` is missing or false, the server can't record structured references: say so once if it matters, and don't present a journal note as one.
 
 ## The completion boundary
 
