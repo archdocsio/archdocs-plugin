@@ -69,7 +69,7 @@ Some findings matter beyond this doc: an edge case, an assumption that turned ou
 
 ## When a decision is made
 
-If it settles an open question, answer it with `answer_design_doc_question` and say who decided. Only answer when a person made the decision or you verified the fact yourself in code, docs or data. For a decision made in a meeting or a chat, pass `outside: true` and a link if there is one.
+If it settles an open question, answer it with `answer_design_doc_question` and say who decided. Only answer when a person made the decision or you verified the fact yourself in code, docs or data. For a decision made in a meeting or a chat, pass `outside: true` and a link if there is one. If the person changes an answer that is already recorded, answer again with `amend: true`.
 
 If it changes what the plan says, record it as a deviation: with a journal, a `deviation` entry (a built-in kind on every journal) saying what differs from the plan and why; without one, an entry in the Deviations thread:
 

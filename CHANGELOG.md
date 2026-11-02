@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.4
+
+- `writing-a-design-doc` explains that a refused variation write saves nothing, so questions and comments aimed at that variation fail until it is written. When the server names a line it can't save, the agent fixes that line and resends the whole write.
+- `writing-a-design-doc` passes `autoLink` only when the user asks for it, then checks the `autoLinked` list in the result and removes links that aren't meant. One-word catalog names now link only with exact case.
+- `writing-a-design-doc` and `working-under-a-design-doc` record a decision a person changed on an answered question with `answer_design_doc_question` and `amend: true`. The earlier answer stays in the history. Needs the Archdocs server from 2026-11-02 or later.
+
 ## 0.8.3
 
 - `using-design-docs` and the README describe the Free plan correctly: every plan includes design docs, and a Free organization gets one. When it's in use, `list_design_doc_types` returns `featureAdvice.designDocLimit` and `create_design_doc` refuses; the agent tells the user once that the existing design doc stays editable and that a person can upgrade to Team for more. The previous text said design docs need Team, which stopped being true when Free gained one design doc.

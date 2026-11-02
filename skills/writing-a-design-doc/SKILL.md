@@ -47,7 +47,7 @@ It also returns `features` and `featureAdvice`. Don't call a tool for a feature 
 
 ## 5. Write the variations that come before the work
 
-By default that's `spec`, then `plan`. With sizes on, write each document type whose timing is before and which is required for the doc's size. Write each with `write_design_doc_variation`, sending the full markdown and the brief together. The server refuses an agent write without a brief.
+By default that's `spec`, then `plan`. With sizes on, write each document type whose timing is before and which is required for the doc's size. Write each with `write_design_doc_variation`, sending the full markdown and the brief together. The server refuses an agent write without a brief. A write that fails is not saved at all: nothing in it exists yet, so questions and comments that point at that variation will fail too. When the server names a line it can't save, change that line and send the whole write again before doing anything that depends on it.
 
 When the spec deliberately postpones something, give it a "Deferred" section with one entry per item: what was postponed, why, and the condition under which to reconsider it ("Reconsider if p95 latency stays above 150 ms"). Only record deferrals the user or the existing docs actually made. Future engineers and agents find this section when they ask for context on the same code, so they don't rebuild something that was set aside on purpose, or mistake the gap for an oversight. A deferral is a postponement, not a rule against the approach.
 
@@ -75,6 +75,8 @@ Call `list_design_doc_questions` before you write, so you don't contradict a que
 
 Answer with `answer_design_doc_question` only when a person made the decision or you checked the fact yourself (in code, docs or data). Say who decided in the answer. When the decision was made outside the app, in a meeting or a chat, pass `outside: true` and a link if there is one. When you only have an opinion or a guess, don't answer. Add it to the question's discussion with `create_comment_thread` (with the question's id) or `reply_to_comment_thread`, and leave the question open.
 
+When a person changes a decision on a question that is already answered, call `answer_design_doc_question` again with `amend: true` and the new answer, saying who changed it. The earlier answer stays in the history. A dropped question can only be reopened by a person in the app.
+
 `drop_design_doc_question` needs a reason and the user's agreement.
 
 ## 8. Mentions
@@ -84,7 +86,7 @@ Mentions make the design doc show up on the objects it touches, so link real cat
 - Look names up with `list_objects` or `search` first.
 - Write `[[Exact Name]]` for an existing catalog object, and `[[new: Name]]` for something the change introduces. A person accepts proposed objects at ship time.
 - Each write returns names it couldn't resolve. Fix every one (use the exact catalog name, or `[[new: Name]]` if it really is new) or tell the user. Never leave them silently.
-- To link plain-text names that are already in a variation, use `link_design_doc_mentions`, or pass `autoLink` on the write.
+- To link plain-text names that are already in a variation, use `link_design_doc_mentions`. Pass `autoLink` on a write only when the user asks for it: it links any unambiguous catalog name it finds, including ordinary words that happen to be a name. The write result lists what it linked under `autoLinked`. Check that list and remove any link that isn't meant.
 
 ## 9. Planned changes
 
