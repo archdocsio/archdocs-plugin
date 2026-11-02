@@ -217,6 +217,14 @@ export async function checkState(expected, {
       }
     }
   }
+  if (expected.diagrams !== undefined) {
+    const names = (doc.diagrams ?? []).map((diagram) => diagram.name);
+    if (names.length !== expected.diagrams) failures.push(`State: design doc diagrams expected ${expected.diagrams}, got ${names.length} (${names.join(', ') || 'none'})`);
+  }
+  for (const { id, pattern } of expected.docMatches ?? []) {
+    const { yaml = '' } = await invoke('get_doc', { id });
+    if (!new RegExp(pattern).test(yaml)) failures.push(`State: doc ${id} YAML does not match /${pattern}/`);
+  }
   if (expected.threadResolved !== undefined) {
     const threads = await invoke('list_comment_threads', { designDocId });
     const first = (Array.isArray(threads) ? threads : threads.threads ?? [])[0];
@@ -305,13 +313,15 @@ export async function setupScenario(scenario, { endpoint, pat, tempDir, env = pr
   }
   const docSetups = ['design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-failing-test-repo',
     'with-failing-test-repo-origin', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria',
-    'with-subsystem-design'];
+    'with-subsystem-design', 'with-living-canvas', 'with-proposed-diagrams'];
   if (!docSetups.includes(setup)) throw new Error(`Unknown setup: ${setup}`);
   const standard = await invoke('list_design_doc_types', {});
   // large-doc leaves readiness to the agent under test; every other fixture arrives with spec and plan ready.
   const doc = await createDocWithSpecAndPlan(invoke, standard, setup === 'large-doc' ? { size: 'LARGE', ready: false }
-    : setup === 'with-subsystem-design' ? { design: SUBSYSTEM_DESIGN } : {});
-  const vars = { designDocNumber: doc.displayNumber, designDocId: doc.id };
+    : setup === 'with-subsystem-design' ? { design: SUBSYSTEM_DESIGN }
+    : setup === 'with-living-canvas' ? { design: LIVING_CANVAS_DESIGN }
+    : setup === 'with-proposed-diagrams' ? { design: PROPOSED_DIAGRAMS_DESIGN } : {});
+  const vars = { designDocNumber: doc.displayNumber, designDocId: doc.id, ...doc.prepared };
   if (setup === 'with-open-question') await invoke('add_design_doc_question', {
     designDocId: doc.id, text: 'Twilio or MessageBird for SMS?',
     context: 'The SMS provider has not been decided.', variation: 'spec',
@@ -407,11 +417,75 @@ const SUBSYSTEM_DESIGN = {
   },
 };
 
+const listOf = (value, key) => (Array.isArray(value) ? value : value?.[key] ?? value?.items ?? []);
+
+// Builds a canvas from Cadence catalog objects (by exact name) plus plain nodes. Object node ids are their names without punctuation.
+async function canvasYaml(invoke, title, objectNames, extraNodes, relationships) {
+  const objects = listOf(await invoke('list_objects', {}), 'objects');
+  const nodes = objectNames.map((name) => {
+    const object = objects.find((candidate) => candidate.name === name);
+    if (!object?.id) throw new Error(`Eval org needs the Cadence "${name}" object. Run evals/setup-local-orgs.mjs.`);
+    return `  - { id: ${name.replace(/[^A-Za-z]/g, '')}, type: reference, referenceType: object, targetId: ${object.id}, label: ${JSON.stringify(name)} }`;
+  });
+  return ['apiVersion: archdocs/v1', `title: ${JSON.stringify(title)}`, 'layout:', '  algorithm: layered', '  direction: right', 'nodes:', ...nodes, ...extraNodes,
+    'relationships:', ...relationships.map(([from, to, label]) => `  - { from: ${from}, to: ${to}, label: ${JSON.stringify(label)} }`)].join('\n') + '\n';
+}
+
+const LIVING_CANVAS_NAME = 'Delivery path';
+
+// A library canvas of today's delivery path, embedded in the spec of an SMS design doc whose work is done.
+// Scenarios using it set restoreLibrary, so the canvas never outlives its run.
+const LIVING_CANVAS_DESIGN = {
+  title: 'SMS delivery channel',
+  prepare: async (invoke) => {
+    for (const leftover of listOf(await invoke('list_docs', {}), 'docs').filter((doc) => doc.name === LIVING_CANVAS_NAME)) {
+      await invoke('delete_doc', { id: leftover.id });
+    }
+    const yaml = await canvasYaml(invoke, LIVING_CANVAS_NAME, ['Sequencer', 'send-requests', 'Delivery Worker', 'SendGrid'], [], [
+      ['Sequencer', 'sendrequests', 'Publishes due steps'], ['sendrequests', 'DeliveryWorker', 'Consumed by'], ['DeliveryWorker', 'SendGrid', 'Sends email via'],
+    ]);
+    const canvas = await invoke('create_doc', { name: LIVING_CANVAS_NAME, yaml });
+    if (!canvas.id) throw new Error('create_doc did not return an id for the living canvas');
+    return { canvasId: canvas.id };
+  },
+  fixture: {
+    spec: '# SMS delivery channel\n\nAdd SMS as a delivery channel. The Delivery Worker sends SMS through [[new: Twilio]], next to SendGrid for email. The current delivery path:\n\n![Delivery path](archdocs://doc/{{canvasId}})\n',
+    plan: '# SMS delivery plan\n\nAdd a Twilio client to the Delivery Worker and route SMS steps from the Sequencer to it. Verify SMS delivery with tests.\n',
+  },
+};
+
+// An SMS design doc with two proposed-design diagrams owned by it, both embedded in the spec.
+const PROPOSED_DIAGRAMS_DESIGN = {
+  title: 'SMS delivery channel',
+  prepare: async (invoke, doc) => {
+    const proposed = await invoke('create_doc', {
+      designDocId: doc.id, name: 'SMS delivery: proposed',
+      yaml: await canvasYaml(invoke, 'SMS delivery: proposed', ['Sequencer', 'send-requests', 'Delivery Worker', 'SendGrid'],
+        ['  - { id: twilio, type: c4-node, kind: external, label: Twilio, description: SMS provider }'], [
+          ['Sequencer', 'sendrequests', 'Publishes due steps'], ['sendrequests', 'DeliveryWorker', 'Consumed by'],
+          ['DeliveryWorker', 'SendGrid', 'Sends email via'], ['DeliveryWorker', 'twilio', 'Sends SMS via'],
+        ]),
+    });
+    const retries = await invoke('create_doc', {
+      designDocId: doc.id, name: 'SMS retry states',
+      yaml: 'apiVersion: archdocs/v1\ntitle: SMS retry states\nnodes:\n  - { id: queued, type: c4-node, kind: service, label: Queued }\n  - { id: sent, type: c4-node, kind: service, label: Sent }\nrelationships:\n  - { from: queued, to: sent, label: Provider accepts }\n',
+    });
+    if (!proposed.embed || !retries.embed) throw new Error('create_doc with designDocId returned no embed line; the server needs DD-0030 (archdocsio/monorepo#16)');
+    return { proposedEmbed: proposed.embed, retriesEmbed: retries.embed, retriesDiagramId: retries.id };
+  },
+  fixture: {
+    spec: '# SMS delivery channel\n\nAdd SMS as a delivery channel. The Delivery Worker sends SMS through [[new: Twilio]], next to SendGrid for email.\n\n{{proposedEmbed}}\n\nA message moves from queued to sent when the provider accepts it.\n\n{{retriesEmbed}}\n',
+    plan: '# SMS delivery plan\n\nAdd a Twilio client to the Delivery Worker and route SMS steps from the Sequencer to it. Verify SMS delivery with tests.\n',
+  },
+};
+
 // The design doc a doc fixture starts from (the SMS delivery doc unless the setup passes another). Readiness follows the org's rules; setup never approves anything.
 async function createDocWithSpecAndPlan(invoke, standard, { size = 'STANDARD', ready = true, design = SMS_DESIGN } = {}) {
   const doc = await invoke('create_design_doc', { title: design.title, size });
   if (!doc.id || !doc.displayNumber) throw new Error('create_design_doc did not return id and displayNumber');
-  const { fixture } = design;
+  // prepare creates what the variation text refers to (diagrams, canvases) and returns the values its {{placeholders}} need.
+  doc.prepared = design.prepare ? await design.prepare(invoke, doc) : {};
+  const fixture = Object.fromEntries(Object.entries(design.fixture).map(([key, text]) => [key, substitute(text, doc.prepared)]));
   for (const variation of ['spec', 'plan']) {
     const type = standard.types?.find((type) => type.key === variation && type.enabled);
     if (!type) throw new Error(`Eval org needs an enabled ${variation} type`);
@@ -477,6 +551,8 @@ export async function runScenario(scenario, mode, n, resultsDir, {
   if (!pat?.trim()) throw new Error(`Missing required environment variable ${patName} for ${scenario.id}`);
   const endpoint = env.ARCHDOCS_EVAL_ENDPOINT || 'http://localhost:3000/mcp';
   const tempDir = await mkdtemp(path.join(tempRoot, 'archdocs-eval-'));
+  const invoke = (name, args) => call(endpoint, pat, name, args);
+  let librarySnapshot;
   const secrets = [env.ARCHDOCS_EVAL_PAT, env.ARCHDOCS_EVAL_PAT_LEAN,
     env.ARCHDOCS_EVAL_PASSWORD_FULL, env.ARCHDOCS_EVAL_PASSWORD_LEAN];
   try {
@@ -484,7 +560,12 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     if (scenario.setup === 'approved-plan') {
       throw new Error('approved-plan setup requires human approval of a fresh fixture after the per-run reset. Pre-existing approved plans are deleted by reset; this scenario needs a manual setup step before Claude can run.');
     }
+    // A scenario that may edit living canvases snapshots the library first; the finally block puts it back.
+    if (scenario.restoreLibrary) librarySnapshot = await snapshotLibrary(invoke);
     const vars = await setupScenario(scenario, { endpoint, pat, tempDir, env, call, fetchImpl });
+    // Expectations may name fixture values, such as the id of a canvas the fixture created.
+    const expect = JSON.stringify(scenario.expect ?? {}).includes('{{')
+      ? JSON.parse(substitute(JSON.stringify(scenario.expect), vars)) : scenario.expect;
     const mcpConfigPath = path.join(tempDir, 'mcp.eval.json');
     await writeFile(mcpConfigPath, JSON.stringify({ mcpServers: {
       'archdocs-eval': { type: 'http', url: endpoint, headers: { Authorization: `Bearer ${pat}` } },
@@ -500,15 +581,15 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     for (const line of stdout.split(/\r?\n/).filter((line) => line.trim())) {
       try { events.push(JSON.parse(line)); } catch { malformed = true; }
     }
-    const grade = gradeTranscript(events, scenario.expect);
+    const grade = gradeTranscript(events, expect);
     if (malformed) grade.failures.push('Claude emitted invalid JSONL');
     if (!events.some((event) => event.type === 'result')) grade.failures.push('Claude emitted no final result event');
     if (events.some((event) => event.type === 'result' && (event.is_error || (event.subtype && event.subtype !== 'success')))) grade.failures.push('Claude reported an unsuccessful result');
     if (result.code !== 0) grade.failures.push(`Claude exited with ${result.code ?? result.signal}: ${redact(result.stderr, secrets).trim()}`);
-    if (scenario.expect.state) {
+    if (expect.state) {
       if (!vars.designDocId) grade.failures.push('State checks need a fixture that creates a design doc');
-      else grade.failures.push(...await checkState(scenario.expect.state, {
-        invoke: (name, args) => call(endpoint, pat, name, args), designDocId: vars.designDocId,
+      else grade.failures.push(...await checkState(expect.state, {
+        invoke, designDocId: vars.designDocId,
         authorize: async (draft) => {
           const client = restClient({ ...resetOptions(scenario, env), fetchImpl });
           await client.login();
@@ -519,7 +600,29 @@ export async function runScenario(scenario, mode, n, resultsDir, {
     grade.pass = grade.failures.length === 0;
     return grade;
   } catch (error) { throw new Error(redact(error.message, secrets)); }
-  finally { await rm(tempDir, { recursive: true, force: true }); }
+  finally {
+    if (librarySnapshot) {
+      try { await restoreLibrary(invoke, librarySnapshot); }
+      catch (error) { console.warn(redact(`Library restore failed for ${scenario.id}: ${error.message}`, secrets)); }
+    }
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+// The YAML of every library doc, so a run that edits living canvases can be undone.
+export async function snapshotLibrary(invoke) {
+  const snapshot = new Map();
+  for (const doc of listOf(await invoke('list_docs', {}), 'docs')) snapshot.set(doc.id, (await invoke('get_doc', { id: doc.id })).yaml);
+  return snapshot;
+}
+
+// Deletes library docs created during the run and writes back each doc whose YAML changed.
+export async function restoreLibrary(invoke, snapshot) {
+  for (const doc of listOf(await invoke('list_docs', {}), 'docs')) {
+    if (!snapshot.has(doc.id)) { await invoke('delete_doc', { id: doc.id }); continue; }
+    const { yaml } = await invoke('get_doc', { id: doc.id });
+    if (yaml !== snapshot.get(doc.id)) await invoke('update_doc', { id: doc.id, yaml: snapshot.get(doc.id) });
+  }
 }
 
 export async function main(argv = process.argv.slice(2)) {

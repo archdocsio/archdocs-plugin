@@ -113,7 +113,7 @@ Each criterion from `get_verification_status` has an outcome. Act on it as you g
 
 With `features.evidenceTracking` on, call `record_architecture_change` for each catalog object or doc the work changed, with a short note on what changed.
 
-When the change makes a living doc wrong (a diagram missing a new queue, an object description naming the old data store), update that doc too. The design doc records why; the living doc shows what's true now.
+When the change makes a living doc wrong (a diagram missing a new queue, an object description naming the old data store), update that doc too: `get_doc`, then `patch_doc` or `update_doc` for a canvas doc, and `update_object` for an object's description. The design doc records why; the living doc shows what's true now. The design doc's own proposed-design diagrams are the plan, not the living doc: leave them alone, and once the doc ships they're frozen.
 
 ## Correcting what you recorded
 

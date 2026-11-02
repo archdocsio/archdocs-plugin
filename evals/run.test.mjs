@@ -4,7 +4,7 @@ import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, resetEvalOrg, runClaude, runScenario, main, loadEvalEnv, checkState } from './run.mjs';
+import { buildClaudeArgs, substitute, parseMcpResponse, mcpCall, setupScenario, resetEvalOrg, runClaude, runScenario, main, loadEvalEnv, checkState, snapshotLibrary, restoreLibrary } from './run.mjs';
 
 const runEnv = {
   ARCHDOCS_EVAL_PAT: 'test-credential',
@@ -609,10 +609,10 @@ test('runScenario fails incomplete, malformed or unsuccessful transcripts even f
 test('main rejects invalid CLI options before any eval work', async () => {
   for (const args of [['--mode', 'bad'], ['--runs', '0'], ['--runs', '1.5'], ['--unknown'], ['--scenario']]) await assert.rejects(main(args));
 });
-test('all thirty-three scenario files have matching ids and use known tools and valid patterns', async () => {
+test('all thirty-six scenario files have matching ids and use known tools and valid patterns', async () => {
   const dir = new URL('./scenarios/', import.meta.url);
   const files = (await readdir(dir)).filter((file) => file.endsWith('.json'));
-  assert.equal(files.length, 33);
+  assert.equal(files.length, 36);
   const tools = new Set(JSON.parse(await readFile(new URL('../tool-names.json', import.meta.url), 'utf8')).tools);
   for (const file of files) {
     const scenario = JSON.parse(await readFile(new URL(file, dir), 'utf8'));
@@ -620,17 +620,18 @@ test('all thirty-three scenario files have matching ids and use known tools and 
     assert.ok(scenario.prompt);
     assert.ok(['full', 'lean'].includes(scenario.org ?? 'full'));
     assert.ok(['none', 'design-doc-with-spec-and-plan', 'with-open-question', 'with-journal-entries', 'with-standing-adr', 'approved-plan', 'plan-file',
-      'with-failing-test-repo', 'with-failing-test-repo-origin', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria', 'with-subsystem-design'].includes(scenario.setup ?? 'none'));
+      'with-failing-test-repo', 'with-failing-test-repo-origin', 'with-review-thread', 'with-stale-test-entry', 'with-done-handoff', 'large-doc', 'with-authorized-criteria', 'with-subsystem-design',
+      'with-living-canvas', 'with-proposed-diagrams'].includes(scenario.setup ?? 'none'));
     // Scenario tools are Claude Code tools, not MCP tools; they are granted on top of Read.
     for (const tool of scenario.tools ?? []) assert.match(tool, /^[A-Za-z]+$/, `${scenario.id}: tool ${tool}`);
     const builtIn = new Set(scenario.tools ?? []);
-    const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? []), ...(scenario.expect.expectFailure ?? []), ...(scenario.expect.resultMatches ?? [])];
+    const argExpectations = [...(scenario.expect.argMatches ?? []), ...(scenario.expect.argMustNotMatch ?? []), ...(scenario.expect.everyCallArgMatches ?? []), ...(scenario.expect.expectFailure ?? []), ...(scenario.expect.resultMatches ?? [])];
     for (const tool of [...(scenario.expect.mustCall ?? []), ...(scenario.expect.mustNotCall ?? []), ...(scenario.expect.mustSucceed ?? []), ...(scenario.expect.mustNotFail ?? []), ...(scenario.expect.order ?? []).flatMap((entry) => (Array.isArray(entry) ? entry : [entry.before, entry.after])), ...argExpectations.map((item) => item.tool), ...Object.keys(scenario.expect.maxSuccessfulCalls ?? {})]) {
       for (const alternative of tool.split('|')) assert.ok(tools.has(alternative) || builtIn.has(alternative), `${scenario.id}: ${alternative}`);
     }
     for (const { pattern } of argExpectations) assert.doesNotThrow(() => new RegExp(pattern));
     for (const key of Object.keys(scenario.expect.state ?? {})) {
-      assert.ok(['variationState', 'designDocStatus', 'openQuestions', 'journalKinds', 'journalLastKind', 'threadResolved', 'criteriaOutcomes', 'standardChecks', 'afterAuthorize'].includes(key), `${scenario.id}: state.${key}`);
+      assert.ok(['variationState', 'designDocStatus', 'openQuestions', 'journalKinds', 'journalLastKind', 'threadResolved', 'criteriaOutcomes', 'standardChecks', 'afterAuthorize', 'diagrams', 'docMatches'].includes(key), `${scenario.id}: state.${key}`);
     }
     for (const pattern of [scenario.expect.finalTextMatches, scenario.expect.finalTextNotMatches]) {
       if (pattern !== undefined) assert.doesNotThrow(() => new RegExp(pattern, 'i'));
@@ -665,4 +666,58 @@ test('checkState finds standard checks by fact and reads the PR criterion after 
   assert.match(failures[0], /no standard check for deploy\.succeeded.*scm\.pr_merged, ci\.checks_passed/);
   assert.match(failures[1], /scm\.pr_merged \(AC-2\) expected SATISFIED after authorization/);
   assert.match((await checkState({ afterAuthorize: { 'scm.pr_merged': 'PENDING' } }, { invoke, designDocId: 'doc-1' }))[0], /no draft criteria|needs the person/);
+});
+const cadenceObjects = ['Sequencer', 'send-requests', 'Delivery Worker', 'SendGrid'].map((name) => ({ id: `id-${name}`, name }));
+test('with-proposed-diagrams embeds two design doc diagrams in the spec', async (t) => {
+  const calls = [];
+  const extra = (name, args) => {
+    if (name === 'list_objects') return cadenceObjects;
+    if (name === 'create_doc') return { id: `diagram-${args.name}`, embed: `![${args.name}](archdocs://doc/diagram-${args.name})` };
+    return undefined;
+  };
+  const vars = await setupScenario({ setup: 'with-proposed-diagrams', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls, { extra }) });
+  const created = calls.filter((call) => call.name === 'create_doc');
+  assert.deepEqual(created.map((call) => [call.args.designDocId, call.args.name]), [['fixture', 'SMS delivery: proposed'], ['fixture', 'SMS retry states']]);
+  assert.match(created[0].args.yaml, /targetId: id-Delivery Worker[\s\S]*label: Twilio[\s\S]*from: DeliveryWorker, to: twilio/);
+  const spec = calls.find((call) => call.name === 'write_design_doc_variation' && call.args.variation === 'spec').args.content;
+  assert.match(spec, /!\[SMS delivery: proposed\]\(archdocs:\/\/doc\/diagram-SMS delivery: proposed\)[\s\S]*!\[SMS retry states\]/);
+  assert.equal(vars.retriesDiagramId, 'diagram-SMS retry states');
+  await assert.rejects(setupScenario({ setup: 'with-proposed-diagrams', org: 'full' }, {
+    ...base, tempDir: await temporary(t), call: fixtureCall([], { extra: (name) => (name === 'list_objects' ? cadenceObjects : name === 'create_doc' ? { id: 'd' } : undefined) }),
+  }), /no embed line/);
+});
+test('with-living-canvas replaces a leftover canvas and embeds the new one in the spec', async (t) => {
+  const calls = [];
+  const extra = (name) => {
+    if (name === 'list_objects') return cadenceObjects;
+    if (name === 'list_docs') return [{ id: 'old', name: 'Delivery path' }, { id: 'overview', name: 'Cadence Platform Overview' }];
+    if (name === 'create_doc') return { id: 'canvas-1' };
+    return undefined;
+  };
+  const vars = await setupScenario({ setup: 'with-living-canvas', org: 'full' }, { ...base, tempDir: await temporary(t), call: fixtureCall(calls, { extra }) });
+  assert.equal(vars.canvasId, 'canvas-1');
+  assert.deepEqual(calls.filter((call) => call.name === 'delete_doc').map((call) => call.args.id), ['old']);
+  assert.equal(calls.find((call) => call.name === 'create_doc').args.designDocId, undefined);
+  assert.match(calls.find((call) => call.name === 'write_design_doc_variation' && call.args.variation === 'spec').args.content, /!\[Delivery path\]\(archdocs:\/\/doc\/canvas-1\)/);
+});
+test('restoreLibrary deletes docs created during the run and writes back changed YAML', async () => {
+  const yaml = { a: 'A1', b: 'B1' };
+  const calls = [];
+  const invoke = async (name, args) => {
+    calls.push([name, args?.id]);
+    if (name === 'list_docs') return Object.keys(yaml).map((id) => ({ id }));
+    if (name === 'get_doc') return { yaml: yaml[args.id] };
+    return {};
+  };
+  const snapshot = await snapshotLibrary(invoke);
+  yaml.a = 'A2';
+  yaml.c = 'C1';
+  calls.length = 0;
+  await restoreLibrary(invoke, snapshot);
+  assert.deepEqual(calls.filter(([name]) => ['update_doc', 'delete_doc'].includes(name)), [['update_doc', 'a'], ['delete_doc', 'c']]);
+});
+test('checkState counts design doc diagrams and matches doc YAML', async () => {
+  const invoke = async (name) => (name === 'get_design_doc' ? { diagrams: [{ name: 'SMS delivery: proposed' }] } : { yaml: 'label: SendGrid' });
+  const failures = await checkState({ diagrams: 0, docMatches: [{ id: 'canvas-1', pattern: 'Twilio' }] }, { invoke, designDocId: 'doc-1' });
+  assert.deepEqual(failures, ['State: design doc diagrams expected 0, got 1 (SMS delivery: proposed)', 'State: doc canvas-1 YAML does not match /Twilio/']);
 });

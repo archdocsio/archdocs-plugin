@@ -80,7 +80,7 @@ When the user asked for a design doc and the rule says the change doesn't need o
 
 ## Other answers
 
-When the system has already changed and a diagram is now wrong, that's an update to the living doc, not a design doc. Find the doc with `search` or `list_object_usages` and update it.
+When the system has already changed and a diagram is now wrong, that's an update to the living doc, not a design doc. Find the doc with `search` or `list_object_usages`, read it with `get_doc`, and change it with `patch_doc` or `update_doc`; fix an object's description with `update_object`. A diagram of a design that isn't built yet belongs to its design doc instead (see `writing-a-design-doc`).
 
 When the user is recording a decision and nothing is being built, write an ADR with `create_adr`. When a design doc's spec settles something that will outlive the change, write the ADR as well and mention it from the spec.
 

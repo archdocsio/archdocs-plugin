@@ -1,5 +1,6 @@
 {
   "id": "living-what-update",
+  "restoreLibrary": true,
   "prompt": "We already added a dead-letter queue after send-requests. The Delivery pipeline diagram is out of date.",
   "expect": { "mustNotCall": ["create_design_doc"] }
 }

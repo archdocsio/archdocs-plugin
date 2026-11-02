@@ -51,6 +51,18 @@ test('argMatches and argMustNotMatch with path * match the whole input', () => {
   assert.equal(gradeTranscript(transcript, { argMustNotMatch: [{ tool: 'add_journal_entry', path: '*', pattern: 'abc1234' }] }).pass, false);
 });
 
+test('everyCallArgMatches fails when any call lacks a matching input', () => {
+  const call = (id, input) => [
+    { type: 'assistant', message: { content: [{ type: 'tool_use', id, name: 'mcp__archdocs-eval__create_doc', input }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: id, content: 'ok' }] } },
+  ];
+  const expect = { everyCallArgMatches: [{ tool: 'create_doc', path: 'designDocId', pattern: '^[0-9a-f-]{36}$' }] };
+  const owned = call('t1', { name: 'SMS: proposed', yaml: 'x', designDocId: '67e6647e-f447-48f1-b35e-4cc1b8f5d917' });
+  assert.equal(gradeTranscript(owned, expect).pass, true);
+  assert.equal(gradeTranscript([...owned, ...call('t2', { name: 'Library canvas', yaml: 'x' })], expect).pass, false);
+  assert.equal(gradeTranscript([], expect).pass, true);
+});
+
 test('argMatches checks nested path', () => {
   const expect = { argMatches: [{ tool: 'write_design_doc_variation', path: 'brief.decision', pattern: 'Valkey' }] };
   assert.equal(gradeTranscript(events({ name: 'write_design_doc_variation', input: { brief: { decision: 'Use Valkey' } } }), expect).pass, true);
