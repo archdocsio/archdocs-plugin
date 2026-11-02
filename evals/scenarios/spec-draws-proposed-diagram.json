@@ -1,0 +1,13 @@
+{
+  "id": "spec-draws-proposed-diagram",
+  "prompt": "Write up a design for adding SMS as a delivery channel. The Sequencer routes SMS steps to the Delivery Worker, which sends them through a new Twilio integration. We've picked Twilio.",
+  "expect": {
+    "mustSucceed": ["create_design_doc", "write_design_doc_variation", "create_doc"],
+    "order": [{ "before": "create_design_doc", "after": "create_doc", "ok": true }],
+    "argMatches": [
+      { "tool": "create_doc", "path": "designDocId", "pattern": "^[0-9a-f-]{36}$", "ok": true },
+      { "tool": "write_design_doc_variation", "path": "content", "pattern": "!\\[[^\\]]*\\]\\(archdocs://doc/[0-9a-f-]{36}\\)", "ok": true }
+    ],
+    "everyCallArgMatches": [{ "tool": "create_doc", "path": "designDocId", "pattern": "^[0-9a-f-]{36}$" }]
+  }
+}

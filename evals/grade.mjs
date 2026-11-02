@@ -80,6 +80,16 @@ export function gradeTranscript(events, expect) {
       return value !== undefined && regex.test(typeof value === 'string' ? value : JSON.stringify(value));
     })) failures.push(`No ${ok ? 'successful ' : ''}${tool} input at ${path} matches /${pattern}/`);
   }
+  // Every call to the tool (every successful one with ok) must have a matching input; a missing input fails.
+  for (const { tool, path, pattern, ok = false } of expect.everyCallArgMatches ?? []) {
+    const regex = new RegExp(pattern);
+    const offending = calls.find((call) => {
+      if (call.name !== tool || (ok && !call.ok)) return false;
+      const value = argAt(call.input, path);
+      return value === undefined || !regex.test(typeof value === 'string' ? value : JSON.stringify(value));
+    });
+    if (offending) failures.push(`A ${ok ? 'successful ' : ''}${tool} input at ${path} does not match /${pattern}/`);
+  }
   for (const { tool, path, pattern } of expect.argMustNotMatch ?? []) {
     const regex = new RegExp(pattern);
     if (calls.some((call) => {

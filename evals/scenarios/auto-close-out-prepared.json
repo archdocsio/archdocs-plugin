@@ -1,5 +1,6 @@
 {
   "id": "auto-close-out-prepared",
+  "restoreLibrary": true,
   "org": "full",
   "setup": "with-done-handoff",
   "prompt": "Pick up {{designDocNumber}}.",

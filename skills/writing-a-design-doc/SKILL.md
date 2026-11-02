@@ -100,9 +100,25 @@ A variation that is approved, or any document variation on a shipped design doc,
 
 ## 11. Diagrams and images
 
-A spec usually reads better with a picture of the parts it changes. To show the system as it is, embed the existing canvas doc: find it with `search` or `list_object_usages`, then put `![Delivery pipeline](archdocs://doc/<docId>)` on a line of its own. It renders live and opens the full canvas.
+A spec usually reads better with a picture of the parts it changes. There are two kinds, and each has one home:
 
-Don't create a new canvas doc to show a proposed design. Canvas docs describe the system as it is now, so a diagram of something not built yet would mislead everyone reading the living docs. Describe the proposed shape in text, or attach an image of it. A person can add a diagram owned by the design doc in the app.
+| Shows | Where it lives | How |
+| --- | --- | --- |
+| The system as it is | The living canvas doc in the library | Embed it: find it with `search` or `list_object_usages`, then put `![Delivery pipeline](archdocs://doc/<docId>)` on a line of its own. It renders live and opens the full canvas. |
+| The proposed design | A diagram owned by the design doc | Draw it with `create_doc` and `designDocId`, then embed it next to the current-state canvas. |
+
+Draw a proposed-design diagram when the change crosses a boundary (it touches two or more catalog objects, or changes an interface, schema or data flow between them), and whenever you judge a picture will help the reader more than a paragraph. To draw it:
+
+1. Call `get_schema` once per session, write the YAML, and check it with `validate_yaml`.
+2. Name existing parts with their exact catalog names, and new parts with the same names as their `[[new: ...]]` mentions, so the diagram and the text agree.
+3. Call `create_doc` with `designDocId`, `name` (for example "SMS delivery: proposed") and `yaml`, and nothing else: no `ownerObjectId`, `slotKey`, `spaceId` or `folderId`. The diagram belongs to the design doc, stays out of the library and search, and freezes when the design doc ships.
+4. Put the returned `embed` line in the variation, on its own line next to the current-state embed, and show the user the returned `url`.
+
+`get_design_doc` lists the design doc's diagrams under `diagrams`, each with `id`, `url` and `embed`. Change one with `update_doc` or `patch_doc` on its `id`. To remove one that doesn't help, first drop its embed line from every variation (read the text with `get_design_doc`, then write it back without the line), then call `delete_doc` on its `id`. Delete any diagram in `diagrams` that no variation embeds. A diagram embedded in an approved variation can't be deleted until a person opens an amendment and the embed is gone.
+
+The proposed design never goes in a library canvas (`create_doc` without `designDocId`): the library shows what is built, and a design doc that isn't built yet would make it wrong for everyone.
+
+If `create_doc` refuses (the document limit is reached, the design doc is frozen, or the server doesn't accept `designDocId`), say so in one sentence, describe the proposed shape in the text instead, and carry on. Don't retry and don't draw it in a library canvas.
 
 For images (a sketch, a screenshot of a dashboard in the evidence), upload with `attach_design_doc_file` for small files or `request_design_doc_upload` then `complete_design_doc_upload` for large ones. Each returns a markdown snippet; put it in the variation text where the image belongs.
 

@@ -1,0 +1,16 @@
+{
+  "id": "remove-proposed-diagram",
+  "org": "full",
+  "setup": "with-proposed-diagrams",
+  "prompt": "On {{designDocNumber}}, the \"SMS retry states\" diagram doesn't add anything. Remove it.",
+  "expect": {
+    "mustSucceed": ["write_design_doc_variation", "delete_doc"],
+    "order": [{ "before": "write_design_doc_variation", "after": "delete_doc", "ok": true }],
+    "argMatches": [{ "tool": "delete_doc", "path": "id", "pattern": "^{{retriesDiagramId}}$", "ok": true }],
+    "argMustNotMatch": [
+      { "tool": "write_design_doc_variation", "path": "content", "pattern": "{{retriesDiagramId}}" },
+      { "tool": "delete_doc", "path": "id", "pattern": "^(?!{{retriesDiagramId}}$)" }
+    ],
+    "state": { "diagrams": 1 }
+  }
+}
