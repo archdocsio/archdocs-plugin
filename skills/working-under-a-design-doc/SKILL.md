@@ -25,7 +25,7 @@ For an agent, the record is the next session's only memory of this work, and the
 
 Before you start the next step, record the last checkpoint:
 
-- each commit, pushed or not, with a `COMMIT` reference (repository and full SHA), even when one commit covers several plan tasks;
+- each commit, pushed or not, with a `COMMIT` reference (the repository as `owner/repo` from `git remote get-url origin`, never the folder or product name, and the full SHA), even when one commit covers several plan tasks;
 - each test or check run, with exact results ("api jest: 968 passed, 0 failed", not "tests pass");
 - each subagent or delegated run (Codex, another agent): what it produced and what your review of it found;
 - each approach that failed, and why, so the next agent doesn't try it again;

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
 
-const commitText = 'Archdocs: you committed while working under a design doc. Before your next step, add a Work Log entry for this commit with add_journal_entry (kind progress, a COMMIT reference with the repository and full SHA, and what it covers), unless the journal\'s instructions say otherwise. Without a journal, post it in the plan\'s "Deviations from the plan" thread.';
+const commitText = 'Archdocs: you committed while working under a design doc. Before your next step, add a Work Log entry for this commit with add_journal_entry (kind progress, a COMMIT reference with the repository as owner/repo from git remote get-url origin, not the folder or product name, and the full SHA, and what it covers), unless the journal\'s instructions say otherwise. Without a journal, post it in the plan\'s "Deviations from the plan" thread.';
 const subagentText = 'Archdocs: a subagent returned while you\'re working under a design doc. Before your next step, record what it produced and what your review of it found with add_journal_entry, unless the journal\'s instructions say otherwise. A run, its review and its test results can share one entry.';
 const stopText = (items) => `Archdocs: the design doc's Work Log is behind the work. Since its last entry: ${items}. Record them now with add_journal_entry (exact test results, commit references, what each run produced and what review found), unless the journal's instructions say otherwise. If none of this belongs on the design doc, say so and finish.`;
 const output = (hookEventName, additionalContext) => ({ hookSpecificOutput: { hookEventName, additionalContext } });

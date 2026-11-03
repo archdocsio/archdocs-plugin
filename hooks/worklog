@@ -231,7 +231,7 @@ if [[ $event == PostToolUse || $event == postToolUse ]]; then
       text=$(normalize "$command")
       while IFS= read -r kind; do printf 'pending %s %s\n' "$kind" "$text" >> "$state"; done <<< "$kinds"
       case $kinds in *commit*)
-        emit 'Archdocs: you committed while working under a design doc. Before your next step, add a Work Log entry for this commit with add_journal_entry (kind progress, a COMMIT reference with the repository and full SHA, and what it covers), unless the journal'"'"'s instructions say otherwise. Without a journal, post it in the plan'"'"'s "Deviations from the plan" thread.' ;;
+        emit 'Archdocs: you committed while working under a design doc. Before your next step, add a Work Log entry for this commit with add_journal_entry (kind progress, a COMMIT reference with the repository as owner/repo from git remote get-url origin, not the folder or product name, and the full SHA, and what it covers), unless the journal'"'"'s instructions say otherwise. Without a journal, post it in the plan'"'"'s "Deviations from the plan" thread.' ;;
       esac ;;
     claude:Agent|claude:Task|cursor:Task)
       [[ -z $async ]] || exit 0

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The repository in every Archdocs call comes from the git remote. `using-design-docs` tells the agent to read `owner/repo` from `git remote get-url origin` (or the tracked upstream) for task context, `COMMIT` and pull request references and code locations, never from the folder, product or package name, and to leave it out when there is no remote. `working-under-a-design-doc` and the commit hook's Work Log reminder say the same. Agents were recording commits against a repository that doesn't exist, so the references never resolved.
+
 ## 0.11.0
 
 - `working-under-a-design-doc` records the guidance that shaped a change. When the design doc's `features.contextReferences` is true, the agent records material `get_task_context` results with `record_context_use`. Each record carries a one-sentence reason and the result's `pin` as `expectedPin`, so a source that changed after it was read is refused with its current text instead of being saved silently. Treatments go through `set_context_treatment`, and constraints that deserve a check are linked or proposed with `link_context_check`. On resume the agent reads `contextUsed` from the design doc or handoff. A recorded reference is described as reported use, never as approval of the source or proof of compliance. When the capability is missing, a journal note is not presented as a structured reference.
