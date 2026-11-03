@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- `working-under-a-design-doc` proposes checks that run after deploy. For outcomes a pull request check can't show, the agent calls `list_verification_connections`, picks a connection by the environment it watches, and proposes a connector criterion with a start and a timing, using revision variables where they help and a dry run when unsure. A check that can't fail is never presented as proof, and agents never create connections.
+- Needs the ArchDocs server with DD-0034 connected verification sources (`list_verification_connections`).
+
 ## 0.12.0
 
 - The repository in every Archdocs call comes from the git remote. `using-design-docs` tells the agent to read `owner/repo` from `git remote get-url origin` (or the tracked upstream) for task context, `COMMIT` and pull request references and code locations, never from the folder, product or package name, and to leave it out when there is no remote. `working-under-a-design-doc` and the commit hook's Work Log reminder say the same. Agents were recording commits against a repository that doesn't exist, so the references never resolved.

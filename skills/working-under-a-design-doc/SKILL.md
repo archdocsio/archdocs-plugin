@@ -106,6 +106,12 @@ Read review feedback: `list_comment_threads` on the design doc, and the pull req
 
 A commit after a test or CI result makes that result stale. Rerun the check, call `recheck_verification` when the organization has criteria, and record the new result before relying on it. The recheck only queues a job: until `get_verification_status` shows a newer `evaluatedAt`, report the criterion as pending.
 
+## Proposing checks that run after deploy
+
+When a criterion is about the change working once it's live (pages load, an event fires, errors don't rise, a flag reaches 100%), a pull request check can't show it. Call `list_verification_connections` first. It lists the organization's connected sources (PostHog and others) and each check's parameters and start events, without credentials. If a fitting connection exists, propose a connector criterion with `propose_acceptance_criteria`: pick the connection by the environment it watches (separate staging and production accounts are separate connections; a filter such as an env tag narrows one account), choose a start (a date, another criterion passing, or a provider event such as a flag change) and a timing (a window decided at its close, or until a deadline). Params can name the revision with `{{revision.sha}}`, `{{revision.mergedAt}}`, `{{pr.number}}` and `{{pr.url}}`. Mark a check you aren't sure of as a dry run (`required: false`) so it reports without blocking.
+
+A check has to be able to fail. Don't propose one whose threshold the system meets whatever the change does, such as "at least one pageview" on a page nobody visits differently after the change, and present it as proof. When no connection fits, say which source would show it and that a person adds connections in Settings > Integrations; agents never create connections.
+
 ## Acceptance criteria while you work
 
 Each criterion from `get_verification_status` has an outcome. Act on it as you go, not at close-out:

@@ -78,6 +78,7 @@
     "list_spaces",
     "list_stale_docs",
     "list_templates",
+    "list_verification_connections",
     "mark_design_doc_shipped",
     "mark_variation_ready",
     "move_doc_to_folder",
