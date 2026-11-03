@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.12.0
 
 - The repository in every Archdocs call comes from the git remote. `using-design-docs` tells the agent to read `owner/repo` from `git remote get-url origin` (or the tracked upstream) for task context, `COMMIT` and pull request references and code locations, never from the folder, product or package name, and to leave it out when there is no remote. `working-under-a-design-doc` and the commit hook's Work Log reminder say the same. Agents were recording commits against a repository that doesn't exist, so the references never resolved.
+- Authorizing acceptance criteria follows the design doc's change type. When `get_design_doc` shows `changeType.agentsMayAuthorizeCriteria: true`, `using-design-docs` and `working-under-a-design-doc` let the agent call `authorize_acceptance_criteria` without a person's decision, following `changeType.agentInstructions`. Criteria a person authorized still need a person to replace them, and Archdocs labels agent-authorized criteria. When the flag is false or missing, a person authorizes, as before.
+- Needs the Archdocs server with DD-0036. Release this version only after that server is live.
 
 ## 0.11.0
 
