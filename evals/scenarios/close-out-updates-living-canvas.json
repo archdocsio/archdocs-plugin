@@ -5,6 +5,7 @@
   "restoreLibrary": true,
   "prompt": "PR https://github.com/example/cadence/pull/51 merged and it's live in prod. It shipped as planned. Close out {{designDocNumber}}.",
   "expect": {
+    "mustNotCall": ["close_out_design_doc"],
     "mustSucceed": ["write_design_doc_variation", "record_architecture_change"],
     "argMatches": [{ "tool": "record_architecture_change", "path": "*", "pattern": "{{canvasId}}", "ok": true }],
     "state": { "docMatches": [{ "id": "{{canvasId}}", "pattern": "Twilio" }] }

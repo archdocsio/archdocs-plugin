@@ -1,13 +1,13 @@
 ---
 name: closing-out-a-design-doc
-description: Use when work tracked by an Archdocs design doc is finished, merged or abandoned, when the user says a design doc's change is done or live, or when asked to record what actually shipped against a design doc.
+description: Use when work tracked by an Archdocs design doc is finished, merged or abandoned, when a doc with criteria is merged and deployed and needs close-out, when the user says a design doc's change is done or live, or when asked to record what actually shipped against a design doc.
 ---
 
 # Closing out a design doc
 
 The evidence variation is the part of a design doc people read a year later, when they want to know what was actually built and where it differed from the plan. Write it from what happened, not from what the plan said would happen.
 
-Start this skill when the user says the work is finished, merged or live, and also on your own when `working-under-a-design-doc` reaches its completion boundary. Preparing the record is your job; marking the doc shipped is the person's decision (section 8).
+Start this skill when the user says the work is finished, merged or live, and also on your own when `working-under-a-design-doc` reaches its completion boundary. Preparing the record and closing out built work are your job. A manual ship is the person's decision (section 8); a type that ships automatically leaves shipping to Archdocs.
 
 ## 1. Read what was planned
 
@@ -57,6 +57,14 @@ Screenshots help here (a dashboard after the change, a test run). Attach them as
 
 Then read the evidence variation's `requiredApprovals` from `get_design_doc`: with `features.approvals` off, make no readiness call; `0` means `mark_variation_ready`; above `0` means `request_design_doc_review`, never `mark_variation_ready` first. With approvals on, shipping fails until every required variation is ready or approved, the evidence included.
 
+### Close out built work
+
+After writing the evidence and updating the living docs and recorded architecture changes, read `get_design_doc`. When it shows an authorized criteria baseline (`acceptanceCriteria.state` is not `NO_CRITERIA`) and the work is merged and deployed, call `close_out_design_doc` with `designDocId` and `sessionUrl` when available. Close-out needs no person's decision: it records that the work is built, not that it is accepted. It moves the doc from Approved to Verifying so Archdocs can evaluate its authorized criteria.
+
+On `closedOut: false`, read each `outstanding` string and do what is yours: write or mark the evidence ready under the readiness rules above, authorize criteria only where `changeType.agentsMayAuthorizeCriteria` and `agentInstructions` allow it (never replace criteria a person authorized on your own), and use `link_pull_request` or `unlink_pull_request` to correct the links. Never unlink a real unmerged pull request just to clear close-out. Call close-out again after fixing those items. Name each item that needs a person for the user: an open amendment, open questions under a BLOCK policy, draft criteria that need a person's authorization, or an evidence approval. Keep those decisions with that person under the existing relay rules.
+
+On `closedOut: true`, report the returned `status`, whether `shipsAutomatically` is true, and the `holds` or outstanding checks from `verification`. Archdocs evaluates GitHub checks, connected sources and attestations in Verifying. When every required criterion passes and is fresh, and the organization and change type allow automatic shipping, Archdocs ships the doc itself with no actor, records "Shipped automatically" and writes a Work Log entry. If the type does not ship automatically, the doc waits in Verifying for a person to ship it by hand. Docs with `acceptanceCriteria.state: "NO_CRITERIA"`, or no criteria on a server without them, keep the existing flow below; do not call close-out for them.
+
 ## 5. Prepared is not shipped
 
 Preparing the record and marking the design doc shipped are two different acts. Assemble the record whenever the authorized outcome is reached, without being asked. In it, keep three states apart and say which one each piece of work is in:
@@ -65,7 +73,9 @@ Preparing the record and marking the design doc shipped are two different acts. 
 - **merged**: the pull request landed on the main branch
 - **live**: running for its users, and checked there
 
-A merged pull request, a green CI run or a finished Linear issue is not a deployment. If you can't tell whether something is live, say so and ask; don't infer it.
+A merged pull request, a green CI run or a finished Linear issue is not a deployment. If you can't tell whether something is live, say so; don't infer it. For the manual path, ask as section 8 describes. For an automatic type, name deployment as outstanding before close-out.
+
+For a doc with criteria, when `changeType.shipsAutomatically` is true, close-out is the last step. Say that Archdocs does the verifying and shipping, say what it is waiting on from `holds`, `verification` or `get_design_doc`'s `verifying.hold`, and stop. Never ask "Is this live?" on this path and never call `mark_design_doc_shipped` to hurry a Verifying doc. When `changeType.shipsAutomatically` is false, close-out leaves the doc in Verifying and the ship question and relay in section 8 still apply. Docs with no criteria keep that manual flow entirely.
 
 ## 6. Open questions
 
@@ -75,15 +85,17 @@ Call `list_design_doc_questions`. Some questions will have been settled during t
 
 Proposed objects (`[[new: ...]]` mentions) are accepted into the catalog or dropped by a person at ship time. List them for the user. When they tell you, record it with `decide_proposed_object` and their words in `decision.statement`; accepting needs the object kind (`list_object_kinds`) and can rename the object.
 
-Approvals and the ship decision belong to people. They can make them in the app or tell you, and you record what they said (see `using-design-docs`, "Decisions a person makes through you"). Opening amendments and superseding are done by people in the app. When work was abandoned, ask the user whether to mark the design doc abandoned and why. On their yes, call `abandon_design_doc` with their reason and their words in `decision.statement`. Don't write evidence for work that didn't happen.
+Approvals and manual ship decisions belong to people. They can make them in the app or tell you, and you record what they said (see `using-design-docs`, "Decisions a person makes through you"). Automatic shipping needs no ship decision. Opening amendments and superseding are done by people in the app. When work was abandoned, ask the user whether to mark the design doc abandoned and why. On their yes, call `abandon_design_doc` with their reason and their words in `decision.statement`. Don't write evidence for work that didn't happen.
 
 ## 8. Shipping
+
+This section is for manual ships, including docs without criteria. For a doc with criteria whose type ships automatically, stop after close-out as section 5 says. A person's explicit decision can still be relayed under the same rules, but never seek one to hurry automatic shipping. If an agent ship call on an automatic Verifying doc is refused, read `get_verification_status` for what is outstanding and stop; don't retry.
 
 Shipping means the change is live for its users, not merged. Call `mark_design_doc_shipped` only when the evidence variation is written (and ready or approved where the organization requires it), and the user has said the change is live, in production, released or deployed. That is their ship decision, so pass their words in `decision.statement`: the sentence where they said it's live, or your question and their yes. Archdocs records the ship in their name, labeled relayed.
 
 Before asking the user for anything, read `canShip`, each variation's `requiredApprovals` and `amendmentOpen`, and the open questions from `get_design_doc`, and finish everything that is yours to finish. Then name the one decision that remains, with what it unblocks.
 
-"Merged", "done", "finished" and "it shipped as planned" (a description of how the work went) don't say that. In those cases don't ship and don't stay quiet either. End by asking: "Is this live? Want me to mark DD-0023 shipped?" Ship on a yes. Without that question nobody marks the doc shipped, and it sits at approved forever.
+"Merged", "done", "finished" and "it shipped as planned" (a description of how the work went) don't say that. In those cases don't ship and don't stay quiet either. End by asking: "Is this live? Want me to mark DD-0023 shipped?" Ship on a yes. Without that question nobody marks a manual doc shipped, and it stays Approved or Verifying.
 
 If the ship call fails, read the reason and act on it:
 

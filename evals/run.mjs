@@ -119,7 +119,7 @@ export async function resetEvalOrg(options) {
     const cursors = new Set();
     let cursor;
     do {
-      // No status filter: includes shipped, abandoned, superseded and draft docs.
+      // No status filter: includes verifying, shipped, abandoned, superseded and draft docs.
       const page = await request(`/design-docs${cursor === undefined ? '' : `?cursor=${cursor}`}`);
       if (!Array.isArray(page?.designDocs) || !page.designDocs.every((doc) => typeof doc?.id === 'string' && doc.id)) {
         throw new Error('GET /design-docs returned an invalid design doc list.');

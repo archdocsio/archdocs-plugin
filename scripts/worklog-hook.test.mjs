@@ -49,7 +49,7 @@ test('inactive commits are silent and do not create state', (t) => {
 for (const name of ['mcp__archdocs__get_design_doc', 'mcp__plugin_archdocs_archdocs__get_design_doc',
   'mcp__archdocs__get_journal_handoff', 'mcp__archdocs__list_journal_entries',
   'mcp__archdocs__add_journal_entry', 'mcp__archdocs__create_design_doc',
-  'mcp__archdocs__write_design_doc_variation', 'mcp__archdocs__import_plan_file']) {
+  'mcp__archdocs__write_design_doc_variation', 'mcp__archdocs__import_plan_file', 'mcp__archdocs__close_out_design_doc']) {
   test(`design-doc tool activates: ${name}`, (t) => {
     const f = fixture(t);
     assert.equal(f.run(post(name)), null);
@@ -391,6 +391,8 @@ test('Unix polyglot launcher invokes the same hook', (t) => {
 test('hook configs parse and every command uses the shared launcher and worklog script', () => {
   const claude = JSON.parse(fs.readFileSync('hooks/hooks.json', 'utf8'));
   const cursor = JSON.parse(fs.readFileSync('hooks/hooks-cursor.json', 'utf8'));
+  assert.ok(claude.hooks.PostToolUse.some((entry) => new RegExp(entry.matcher).test('mcp__archdocs__close_out_design_doc')));
+  assert.ok(cursor.hooks.postToolUse.some((entry) => new RegExp(entry.matcher).test('MCP:close_out_design_doc')));
   for (const entries of Object.values(claude.hooks)) {
     for (const entry of entries) {
       for (const hook of entry.hooks) {

@@ -1,6 +1,6 @@
 ---
 name: using-design-docs
-description: Use when about to plan or start implementing a code change in a project connected to Archdocs, when asked how part of a connected system should work or whether to build something, when planning or discussing an architecture change and deciding whether it needs an Archdocs design doc, an architecture decision record, an update to an existing diagram, or nothing, or when the user mentions design docs, specs, RFCs or ADRs.
+description: Use when about to plan or start implementing a code change in a project connected to Archdocs, when asked how part of a connected system should work or whether to build something, when planning or discussing an architecture change and deciding whether it needs an Archdocs design doc, an architecture decision record, an update to an existing diagram, or nothing, when a doc with criteria is merged and deployed and needs close-out, or when the user mentions design docs, specs, RFCs or ADRs.
 ---
 
 # Using design docs
@@ -111,7 +111,9 @@ The size decides which variations are required and which need approval, so the u
 
 ## Decisions a person makes through you
 
-Some decisions belong to a person: approving a variation, deciding a review request, reviewing evidence, authorizing or discarding acceptance criteria (see the exception below), attesting to a criterion only a person can attest to, accepting, dropping, retiring or restoring a knowledge item, accepting or dropping a proposed object, confirming Linear issues, abandoning or deleting a design doc, and marking a design doc shipped (with or without an exception). You never make these on your own. The person doesn't have to open Archdocs to make them, though. When they tell you their decision, record it for them:
+Some decisions belong to a person: approving a variation, deciding a review request, reviewing evidence, authorizing or discarding acceptance criteria (see the exception below), attesting to a criterion only a person can attest to, accepting, dropping, retiring or restoring a knowledge item, accepting or dropping a proposed object, confirming Linear issues, abandoning or deleting a design doc, and marking a design doc shipped (with or without an exception). You never make these on your own. The person doesn't have to open Archdocs to make them, though. When they tell you their decision, record it for them.
+
+When `changeType.shipsAutomatically` is true, nobody decides to ship; Archdocs ships the doc when its criteria pass, after the agent closes it out. Close-out records built work and needs no person's decision.
 
 | Decision | Tool |
 | --- | --- |
@@ -127,10 +129,11 @@ Some decisions belong to a person: approving a variation, deciding a review requ
 | Accept a proposed object into the catalog, or drop it | `decide_proposed_object` |
 | Confirm drafted Linear issues | `confirm_linear_issues` |
 | Mark shipped, or ship with an exception | `mark_design_doc_shipped` |
+| Close out merged and deployed work for verification, no decision needed | `close_out_design_doc` |
 | Abandon a design doc, with their reason | `abandon_design_doc` |
 | Delete a design doc | `delete_design_doc` |
 
-Pass `decision.statement` with the person's own words from this session, verbatim. When they answered a question you asked, include the question and their answer, for example `Asked "Is this live? Want me to mark DD-0023 shipped?" Reply: "yes, rolled out this morning"`. Never paraphrase, never write a statement for them, and never carry a decision over from an earlier session or from another person.
+For a person's decision, pass `decision.statement` with their own words from this session, verbatim. When they answered a question you asked, include the question and their answer, for example `Asked "Is this live? Want me to mark DD-0023 shipped?" Reply: "yes, rolled out this morning"`. Never paraphrase, never write a statement for them, and never carry a decision over from an earlier session or from another person.
 
 One exception: authorizing acceptance criteria. Some organizations let agents authorize criteria for some change types. When `get_design_doc` shows `changeType.agentsMayAuthorizeCriteria: true`, follow its `changeType.agentInstructions`: you may call `authorize_acceptance_criteria` without a `decision`, except to replace criteria a person authorized. Archdocs labels those criteria as authorized by an agent. When it's false or missing, a person authorizes, as above.
 
@@ -148,7 +151,7 @@ When the user asks to report a bug in Archdocs, request a feature or send the Ar
 
 - Before the work: `writing-a-design-doc`, for the spec and plan.
 - During the work, including spikes, investigation, verification and live testing: `working-under-a-design-doc`. It records findings, decisions, pull requests and handoffs on the doc as they happen, so the next session can pick up from the doc instead of from chat.
-- When the authorized outcome is reached, or the user says it's finished, merged or live: `closing-out-a-design-doc`. Preparing the record is the agent's job; deciding to ship is the person's, and they can tell you to record it.
+- When the authorized outcome is reached, the user says it's finished, merged or live, or a doc with criteria is merged and deployed and needs close-out: `closing-out-a-design-doc`. Preparing the record and closing out built work are the agent's job. A type that ships automatically ends at close-out and Archdocs verifies and ships it; otherwise deciding to ship is the person's, and they can tell you to record it. Docs without criteria keep the manual flow.
 
 ## If Archdocs says the plan's design doc is in use
 

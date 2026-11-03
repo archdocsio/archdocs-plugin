@@ -29,6 +29,7 @@
       }
     ],
     "mustNotCall": [
+      "close_out_design_doc",
       "mark_design_doc_shipped",
       "approve_variation",
       "authorize_acceptance_criteria"

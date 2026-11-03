@@ -7,7 +7,7 @@ description: Use when doing any task from an Archdocs design doc's plan, or any 
 
 A design doc that's only touched before and after the work misses most of what happened. Decisions get made in the middle, the plan meets the code, pull requests open one at a time, and sessions end before the work does. Record each of those when it happens, on the design doc, where the next session or agent will look. Chat is not a record.
 
-You own the requested work until it reaches its completion boundary (below). A push, a pull request, a journal entry, a queued check or a handoff is an intermediate step, not the end. Spikes, verification runs and investigation count as work on the change. Don't mark anything shipped here; that stays with `closing-out-a-design-doc` and the person.
+You own the requested work until it reaches its completion boundary (below). A push, a pull request, a journal entry, a queued check or a handoff is an intermediate step, not the end. Spikes, verification runs and investigation count as work on the change. Close-out and shipping belong with `closing-out-a-design-doc`; manual shipping needs the person's decision, and automatic shipping belongs to Archdocs.
 
 This skill covers the whole span of the work, not just the first entry. When another skill, checklist or delegation tool drives the loop (a Codex run, subagents, a verification checklist), follow both: its steps for doing the work, and these for recording it. Its checklist having no "record" step doesn't mean skipping one.
 
@@ -52,6 +52,8 @@ Results carry a `url` for the exact item they wrote or read: a journal entry, a 
 
 Then tell the user where things stand, from the record, name the boundary you're working to, and continue.
 
+When resuming a doc whose `status` is `VERIFYING`, read `verifying.hold` from `get_design_doc`. A `waiting` hold needs nothing; `attention` means a check failed or a question is open, so act on what is yours or name it for the user; `ready` means a person can ship by hand. Read its `reasons`, `message` and `outstanding` checks for the handoff. A null hold lists no hold; don't invent one or infer that the doc shipped.
+
 ## Recording the guidance you used
 
 When the design doc's `features.contextReferences` is true, record the context results that actually shaped the approach. Don't record every search result, and don't record anything just because you searched: `get_task_context` never saves anything by itself.
@@ -71,6 +73,8 @@ Read the boundary from the request and from standing authorization, in this orde
 2. **Merge-ready**: pushed, CI green for the latest revision, review feedback addressed, evidence current.
 3. **Merged**: the pull request is merged. Only when the user authorized merging.
 4. **Deployed and verified**: live, and checked live. Only when the user authorized deploying.
+
+Once the work is merged and deployed, a doc with an authorized criteria baseline is closed out through `closing-out-a-design-doc`. For a type with `changeType.shipsAutomatically: true`, "Deployed and verified" ends at close-out: Archdocs does the verifying and the shipping, and your job is to leave the holds readable in the handoff.
 
 When the request names none and the plan has tasks, the boundary is merge-ready. Set it once and work to it; don't ask the user to confirm it again at each step. Committing, pushing and opening a pull request follow the user's and the host's rules: when you aren't authorized to push, the boundary is implementation verified, and say so. Merging and deploying always need authorization you can point to.
 
@@ -170,4 +174,4 @@ Then leave a handoff. With a journal, `add_journal_entry` with `kind: "handoff"`
 
 ## When the boundary is reached
 
-Don't wait for the user to say the work is done. When the record says the plan's work is done (the handoff, the progress entries, the merged pull requests), switch to `closing-out-a-design-doc` and assemble the record yourself: what shipped, each deviation, what's outstanding, and what the acceptance criteria say. A gap you find on the way, such as an unrecorded deviation or a claim you can't check from here, goes into the evidence as a deviation or an open item, not between you and writing it. Be exact about implemented, merged and live; a merged pull request or a finished Linear issue is not a deployment. Marking the design doc shipped stays a decision for the person, and that skill says how to ask.
+Don't wait for the user to say the work is done. When the record says the plan's work is done (the handoff, the progress entries, the merged pull requests), switch to `closing-out-a-design-doc` and assemble the record yourself: what shipped, each deviation, what's outstanding, and what the acceptance criteria say. A gap you find on the way, such as an unrecorded deviation or a claim you can't check from here, goes into the evidence as a deviation or an open item, not between you and writing it. Be exact about implemented, merged and live; a merged pull request or a finished Linear issue is not a deployment. A doc with criteria is closed out through that skill once the work is merged and deployed. For a type that ships automatically, "Deployed and verified" ends at close-out: Archdocs verifies and ships it, and you leave the holds readable in the handoff. Otherwise, marking the design doc shipped stays a decision for the person, and that skill says how to ask. Docs without criteria keep the existing manual flow.

@@ -10,6 +10,7 @@
       "mark_design_doc_shipped"
     ],
     "mustNotCall": [
+      "close_out_design_doc",
       "mark_variation_ready",
       "request_design_doc_review"
     ],

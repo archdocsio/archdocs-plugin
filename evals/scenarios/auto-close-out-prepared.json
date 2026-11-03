@@ -31,6 +31,7 @@
       }
     ],
     "mustNotCall": [
+      "close_out_design_doc",
       "mark_design_doc_shipped",
       "create_design_doc"
     ],

@@ -159,7 +159,7 @@ if [[ $event == PostToolUse || $event == postToolUse ]]; then
   esac
   if [[ -n $mcp ]]; then
     case $bare in
-      get_design_doc|get_journal_handoff|list_journal_entries|add_journal_entry|create_design_doc|write_design_doc_variation|import_plan_file)
+      get_design_doc|get_journal_handoff|list_journal_entries|add_journal_entry|create_design_doc|write_design_doc_variation|import_plan_file|close_out_design_doc)
         if [[ ! -f $state ]]; then
           mkdir -p "$dir"
           find "$dir" -name '*.state' -mtime +7 -delete 2>/dev/null || :

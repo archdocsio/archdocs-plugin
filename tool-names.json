@@ -14,6 +14,7 @@
     "cancel_linear_proposal",
     "cancel_review",
     "change_knowledge_item",
+    "close_out_design_doc",
     "complete_design_doc_upload",
     "confirm_linear_issues",
     "correct_design_doc_relation",

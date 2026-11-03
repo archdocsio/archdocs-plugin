@@ -11,6 +11,7 @@
       "mark_variation_ready"
     ],
     "mustNotCall": [
+      "close_out_design_doc",
       "answer_design_doc_question"
     ],
     "order": [

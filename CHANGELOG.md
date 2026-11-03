@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.0
+
+- `closing-out-a-design-doc` calls `close_out_design_doc` once work with an authorized criteria baseline is merged and deployed, after writing the evidence, updating the living docs and recording architecture changes. Close-out needs no person's decision and moves the doc from Approved to Verifying. The agent finishes outstanding items that are its own, names what needs a person, and reports the status, automatic shipping and verification holds. When `changeType.shipsAutomatically` is true, close-out is the last step: Archdocs verifies and ships the doc, and the agent stops without asking the ship question or calling `mark_design_doc_shipped` to hurry it. Manual ships keep the question, relay and criteria exception rules. Docs without criteria keep the existing flow without close-out.
+- `working-under-a-design-doc` hands merged and deployed work with criteria to close-out. For a type that ships automatically, deployed and verified ends there, with the holds readable in the handoff. On resume it reads `verifying.hold`: waiting needs nothing, attention needs action or a named open item, and ready means a person can ship by hand.
+- `using-design-docs` distinguishes close-out from a person's ship decision and routes merged and deployed work with criteria to the close-out skill. `writing-a-design-doc` says a type's `shipsAutomatically` makes acceptance criteria the real definition of done. The close-out command and README follow the same flow.
+- Adds `close_out_design_doc` to the tool list and Work Log hook matchers. Evals keep manual shipping for docs without criteria and include Verifying in status checks.
+- Needs the ArchDocs server with DD-0037 (close_out_design_doc, changeType.shipsAutomatically, verifying on get_design_doc). Release this version only after that server is live.
+
 ## 0.14.0
 
 - Design docs follow their change type. `writing-a-design-doc` reads `changeTypes`, `defaultChangeType` and `changeTypesEntitled` from `list_design_doc_types`, picks a type by comparing the work to each type's `whenToUse`, tells the user which type and why, and passes `changeType` to `create_design_doc`. When the fit is unclear the agent asks; without entitlement it uses the default. After creating the doc, the agent writes the variations from the doc's pinned `changeType.entries` and `types`: the before-work document entries required for its size, the `intentSource` entry first. A Bug fix gets no spec.

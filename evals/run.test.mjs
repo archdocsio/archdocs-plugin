@@ -16,7 +16,7 @@ const emptyOrgFetch = async (url) => Response.json(url.endsWith('/auth/login') ?
 
 test('resetEvalOrg logs in, pages all design doc statuses, and deletes every doc and ADR with org headers', async () => {
   const calls = [];
-  const statuses = ['DRAFT', 'IN_PROGRESS', 'SHIPPED', 'ABANDONED', 'SUPERSEDED'];
+  const statuses = ['DRAFT', 'IN_PROGRESS', 'VERIFYING', 'SHIPPED', 'ABANDONED', 'SUPERSEDED'];
   const fetchImpl = async (url, options) => {
     const route = new URL(url).pathname + new URL(url).search;
     calls.push([options.method, route]);
@@ -37,12 +37,12 @@ test('resetEvalOrg logs in, pages all design doc statuses, and deletes every doc
     const secondPage = route === '/design-docs?cursor=25';
     assert.ok(secondPage || route === '/design-docs');
     return Response.json({
-      designDocs: statuses.slice(secondPage ? 3 : 0, secondPage ? 5 : 3).map((status) => ({ id: `doc-${status}`, status })),
+      designDocs: statuses.slice(secondPage ? 3 : 0, secondPage ? statuses.length : 3).map((status) => ({ id: `doc-${status}`, status })),
       nextCursor: secondPage ? null : 25,
     });
   };
   assert.deepEqual(await resetEvalOrg({ api: 'http://localhost:4500/', email: 'eval@example.test', password: 'secret-password', orgId: 'eval-org', fetchImpl }),
-    { designDocsDeleted: 5, adrsDeleted: 2 });
+    { designDocsDeleted: 6, adrsDeleted: 2 });
   assert.deepEqual(calls, [
     ['POST', '/auth/login'], ['GET', '/design-docs'], ['GET', '/design-docs?cursor=25'],
     ...statuses.map((status) => ['DELETE', `/design-docs/doc-${status}`]),
@@ -143,6 +143,8 @@ test('checkState compares design doc, journal, thread and criteria state against
   assert.match(failures[4], /last journal entry.*expected progress.*handoff/);
   assert.match(failures[5], /thread.*resolved/);
   assert.match(failures[6], /AC-2.*expected SATISFIED.*PENDING/);
+  doc.status = 'VERIFYING';
+  assert.deepEqual(await checkState({ designDocStatus: 'VERIFYING' }, context), []);
 });
 test('checkState reads the journal variation key from the doc and reports a missing journal or thread', async () => {
   const invoke = async (name) => {

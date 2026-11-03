@@ -9,6 +9,7 @@
       "write_design_doc_variation"
     ],
     "mustNotCall": [
+      "close_out_design_doc",
       "link_pull_request",
       "set_planned_changes",
       "mark_variation_ready",

@@ -45,6 +45,8 @@ It also returns `features` and `featureAdvice`. Don't call a tool for a feature 
 
 The same response lists the organization's `changeTypes`, its `defaultChangeType` and `changeTypesEntitled`. A change type decides which variations the doc has, which one states the intent (`intentSource`), and what each requires. Each type has a `whenToUse` written by the organization: read it as the rule for choosing.
 
+When a type has `shipsAutomatically: true`, docs of that type ship themselves once verified, so the acceptance criteria must be the real definition of done. `get_design_doc`'s `changeType.shipsAutomatically` says whether both the organization and the pinned change type allow automatic shipping for this doc.
+
 - Compare the work to each active type's `whenToUse`. When one fits better than the default, use it, and tell the user which type and why in one sentence ("This is a Bug fix: the export drops rows it is documented to keep"). When the fit is unclear, ask the user; don't guess.
 - When the fix or change alters what the system is supposed to do, not only how it does it, it usually isn't a Bug fix. Follow the types' own `whenToUse` on this.
 - With `changeTypesEntitled` false, or a server that returns no `changeTypes`, don't pick a type; the doc uses the default.
