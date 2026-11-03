@@ -11,7 +11,7 @@ Start this skill when the user says the work is finished, merged or live, and al
 
 ## 1. Read what was planned
 
-Find the design doc with `list_design_docs` (by number or text) and read it with `get_design_doc`, including the plan's full text. Call `list_design_doc_types` for the evidence type's instructions, outline and brief fields, and for `features`.
+Find the design doc with `list_design_docs` (by number or text) and read it with `get_design_doc`, including the plan's full text. Call `list_design_doc_types` for `features`. Take the evidence variation from the doc's change type: the entry in `get_design_doc`'s `changeType.entries` with `role: "evidence"` (usually key `evidence`), with its instructions, outline and brief fields from the doc's `types`, which are pinned to the doc.
 
 ## 2. Start from what was recorded during the work
 
@@ -43,7 +43,7 @@ When the server offers acceptance criteria, call `list_acceptance_criteria`. Cal
 
 ## 4. Write the evidence
 
-Write the `evidence` variation with `write_design_doc_variation`, following the type's outline. Cover:
+Write the evidence variation with `write_design_doc_variation`, following its outline. Cover:
 
 - what shipped
 - each deviation from the plan, with its reason

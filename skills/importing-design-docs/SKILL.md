@@ -57,6 +57,7 @@ Call `import_design_doc` once per approved row:
 - `externalId`, `sourceUrl`, `originalAuthor`, `originalAuthorEmail`, `originalDate` from the table.
 - `status` and, for ABANDONED, `abandonedReason` from the text; for SUPERSEDED, `supersededBy` with the replacing document's `externalId`.
 - `variations`: the markdown of each variation by type key (`spec`, `plan`, `evidence`, or the organization's own keys from `list_design_doc_types`). Send the file body as it is; the server drops a leading frontmatter block, removes NUL characters and stores canonical markdown. Do not rewrite, trim or "improve" the text.
+- `changeType` only when a document clearly is one of the organization's other change types by their `whenToUse` (a bug-fix writeup with no spec). Leave it out otherwise; historical imports default to Standard change.
 - A `brief` per variation when you can write one honestly from the text (what was decided, the risks it names, the alternatives it rejected). The brief must say what the document says. When you can't, leave it out and the server stores a placeholder naming the source.
 - `autoLink: true`, so plain-text names of catalog objects become mentions.
 

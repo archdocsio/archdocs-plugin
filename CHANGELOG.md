@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+- Design docs follow their change type. `writing-a-design-doc` reads `changeTypes`, `defaultChangeType` and `changeTypesEntitled` from `list_design_doc_types`, picks a type by comparing the work to each type's `whenToUse`, tells the user which type and why, and passes `changeType` to `create_design_doc`. When the fit is unclear the agent asks; without entitlement it uses the default. After creating the doc, the agent writes the variations from the doc's pinned `changeType.entries` and `types`: the before-work document entries required for its size, the `intentSource` entry first. A Bug fix gets no spec.
+- `using-design-docs` names a better-fitting change type when it proposes a design doc. `closing-out-a-design-doc` writes the evidence entry (`role: "evidence"`) with the doc's pinned instructions. `importing-design-docs` passes `changeType` only when a document clearly is another type.
+- Needs the ArchDocs server with DD-0026 change types (`changeTypes` in `list_design_doc_types`, `changeType` on `create_design_doc`).
+
 ## 0.13.0
 
 - `working-under-a-design-doc` proposes checks that run after deploy. For outcomes a pull request check can't show, the agent calls `list_verification_connections`, picks a connection by the environment it watches, and proposes a connector criterion with a start and a timing, using revision variables where they help and a dry run when unsure. A check that can't fail is never presented as proof, and agents never create connections.

@@ -41,13 +41,23 @@ Call `list_design_doc_types` before writing anything. It returns, per variation 
 
 It also returns `features` and `featureAdvice`. Don't call a tool for a feature that is off; it fails. If an off feature would have helped the user, pass on the advice once.
 
+### Pick the change type
+
+The same response lists the organization's `changeTypes`, its `defaultChangeType` and `changeTypesEntitled`. A change type decides which variations the doc has, which one states the intent (`intentSource`), and what each requires. Each type has a `whenToUse` written by the organization: read it as the rule for choosing.
+
+- Compare the work to each active type's `whenToUse`. When one fits better than the default, use it, and tell the user which type and why in one sentence ("This is a Bug fix: the export drops rows it is documented to keep"). When the fit is unclear, ask the user; don't guess.
+- When the fix or change alters what the system is supposed to do, not only how it does it, it usually isn't a Bug fix. Follow the types' own `whenToUse` on this.
+- With `changeTypesEntitled` false, or a server that returns no `changeTypes`, don't pick a type; the doc uses the default.
+
+The variation types listed above are the organization's library. The doc you create follows its change type, so after creating it, take the variations, their instructions and outlines from `get_design_doc` (`changeType` and `types`), not from this list.
+
 ## 4. Create
 
-`create_design_doc` needs a title and a size. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened. If the user named a space or an owner, pass `spaceId` or `ownerUserId`; otherwise leave them out and the doc belongs to the person whose token you're using. To change the title, size, space, folder or owner later, use `update_design_doc`; with sizes on, a size change is still the user's choice.
+`create_design_doc` needs a title and a size. Pass `changeType` with the key you picked in section 3; leave it out to use the organization's default. With `features.sizes` off, send `STANDARD`. With it on, use the size the user chose (see `using-design-docs` for proposing one). Pass `sessionUrl` on this and every later write when your session has a shareable link, so readers can see where the agent work happened. If the user named a space or an owner, pass `spaceId` or `ownerUserId`; otherwise leave them out and the doc belongs to the person whose token you're using. To change the title, size, space, folder or owner later, use `update_design_doc`; with sizes on, a size change is still the user's choice.
 
 ## 5. Write the variations that come before the work
 
-By default that's `spec`, then `plan`. With sizes on, write each document type whose timing is before and which is required for the doc's size. Write each with `write_design_doc_variation`, sending the full markdown and the brief together. The server refuses an agent write without a brief. A write that fails is not saved at all: nothing in it exists yet, so questions and comments that point at that variation will fail too. When the server names a line it can't save, change that line and send the whole write again before doing anything that depends on it.
+Read them from `get_design_doc`: each entry in `changeType.entries` with `timing: "BEFORE"`, `contentMode: "DOCUMENT"`, `enabled: true`, and, with sizes on, the doc's size in `requiredFor`. Write the entry named by `changeType.intentSource` first, since it states what the change is for, then the rest in order. Follow each one's instructions and outline from the doc's `types`; they are pinned to the doc and can differ from the organization's current settings. For Standard change that's usually `spec`, then `plan`. A Bug fix has no spec: its plan starts from the observed problem and its reproduction, so don't add a spec it doesn't have. Write each with `write_design_doc_variation`, sending the full markdown and the brief together. The server refuses an agent write without a brief. A write that fails is not saved at all: nothing in it exists yet, so questions and comments that point at that variation will fail too. When the server names a line it can't save, change that line and send the whole write again before doing anything that depends on it.
 
 When the spec deliberately postpones something, give it a "Deferred" section with one entry per item: what was postponed, why, and the condition under which to reconsider it ("Reconsider if p95 latency stays above 150 ms"). Only record deferrals the user or the existing docs actually made. Future engineers and agents find this section when they ask for context on the same code, so they don't rebuild something that was set aside on purpose, or mistake the gap for an oversight. A deferral is a postponement, not a rule against the approach.
 

@@ -76,6 +76,8 @@ When the rule matches and the user didn't ask for a design doc, propose one in a
 
 > This touches the Sequencer and the Delivery Worker and adds Twilio as a dependency. Want me to start a design doc before I build it?
 
+When `list_design_doc_types` returns `changeTypes` and another type's `whenToUse` fits the work better than the default (a Bug fix for behavior that doesn't match what was intended), name it in the same sentence: "Want me to start a Bug fix design doc before I change it?" `writing-a-design-doc` says how to pick one.
+
 Create it only on a yes. If they say no, carry on with the work and don't ask again for the same change. When the rule doesn't match, say nothing about design docs at all, not even to say the change doesn't need one.
 
 When the user asked for a design doc and the rule says the change doesn't need one, say so in one sentence and ask whether to continue. They may have a reason you can't see.
