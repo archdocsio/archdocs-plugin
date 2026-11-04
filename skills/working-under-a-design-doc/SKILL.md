@@ -102,6 +102,19 @@ With `features.evidenceTracking` on, call `link_pull_request` right away. Archdo
 
 With a journal, add a `progress` entry naming the plan task and linking the commits (`references` with `kind: "COMMIT"`, `repo` and the full SHA). When you already recorded those commits as you made them, reference those entries (`kind: "ENTRY"`) instead of repeating them.
 
+## Supporting docs: procedures, test plans and investigations
+
+A design doc can hold supporting docs: named documents such as a staging rehearsal runbook, a production cutover runbook, a test plan or an investigation, each with its own revisions. They are content for this one change. They are not variations, approvals or evidence, and creating, editing or ticking boxes in one never satisfies a criterion or changes the doc's readiness.
+
+- **Create one** (`create_supporting_doc`, with `starter: "runbook"` or another starter, or a blank doc) when a procedure, test plan or investigation is long enough, or followed often enough, that it would otherwise be pasted into the plan or repeated across Work Log entries. Don't create one for every task. Most changes need none.
+- **Link it, don't copy it.** Put its `url` in the plan step that uses it. Keep execution results out of the procedure text, and keep the procedure out of the Work Log.
+- **Find the one your task needs.** `get_design_doc` lists `supportingDocs` (title, kind, preview, current revision, url) without their bodies, and `get_task_context` can return a supporting doc that matches the task. Read only the one you need with `get_supporting_doc`.
+- **Record each attempt** to follow it as a Work Log entry with a `SUPPORTING_DOC` reference (`id`, and `revision` when you followed an older one; otherwise the current revision is pinned). Say the environment, the deployed version when you know it, the outcome, deviations and blockers, and link logs, dashboards, commits or test runs. A failed attempt gets its own entry; never edit or drop it after a later one succeeds.
+- **Revise the procedure** with `update_supporting_doc` and the `expectedRevision` you read. If it refuses because the doc changed, read the current revision and merge your change into it. Then record the next attempt against the new revision.
+- **Scope stays honest.** A staging rehearsal is staging evidence for a person to weigh, not proof the production cutover worked. Archive a supporting doc that no longer applies (`archive_supporting_doc`); links to its revisions keep working.
+
+After the design doc ships, its supporting docs are frozen with it, like its variations.
+
 ## Follow the change through
 
 After a push, look at the checks for that revision: `get_verification_status` when the organization has GitHub criteria, otherwise the CI the repository uses. A failure caused by the change is yours: fix it, push, and look again. A failure the change didn't cause: say so, with the evidence, and don't claim the revision is green.

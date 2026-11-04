@@ -63,6 +63,8 @@ Read them from `get_design_doc`: each entry in `changeType.entries` with `timing
 
 When the spec deliberately postpones something, give it a "Deferred" section with one entry per item: what was postponed, why, and the condition under which to reconsider it ("Reconsider if p95 latency stays above 150 ms"). Only record deferrals the user or the existing docs actually made. Future engineers and agents find this section when they ask for context on the same code, so they don't rebuild something that was set aside on purpose, or mistake the gap for an oversight. A deferral is a postponement, not a rule against the approach.
 
+When the plan needs a full procedure (a rehearsal or cutover runbook, a test plan), don't embed it in the plan. Create a supporting doc with `create_supporting_doc` and link its `url` from the plan step instead. Supporting docs are optional and never become required variations; see `working-under-a-design-doc` for how they are followed and recorded.
+
 If the user already has a plan file from another tool, don't rewrite it. Use `import_plan_file` with its content, its `source` (`claude-code`, `spec-kit`, `kiro` or `markdown`) and a brief written from it.
 
 ## 6. Never invent

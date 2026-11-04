@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- Supporting docs. `working-under-a-design-doc` says when to create a supporting doc (a runbook, test plan or investigation that would otherwise be pasted into the plan or repeated in the Work Log), how to find the one a task needs from `get_design_doc` `supportingDocs` or `get_task_context` without loading every body, how to record each attempt as a Work Log entry with a `SUPPORTING_DOC` reference pinned to the revision used, and how to revise a procedure with `expectedRevision`. Failed attempts keep their own entries, staging results stay staging results, and a supporting doc is never approval or evidence.
+- `writing-a-design-doc` links a procedure from the plan as a supporting doc instead of embedding it.
+- Adds `list_supporting_docs`, `get_supporting_doc`, `list_supporting_doc_revisions`, `create_supporting_doc`, `update_supporting_doc`, `archive_supporting_doc` and `restore_supporting_doc` to the tool list.
+- Needs the ArchDocs server with supporting docs. Release this version only after that server is live.
+
 ## 0.15.0
 
 - `closing-out-a-design-doc` calls `close_out_design_doc` once work with an authorized criteria baseline is merged and deployed, after writing the evidence, updating the living docs and recording architecture changes. Close-out needs no person's decision and moves the doc from Approved to Verifying. The agent finishes outstanding items that are its own, names what needs a person, and reports the status, automatic shipping and verification holds. When `changeType.shipsAutomatically` is true, close-out is the last step: Archdocs verifies and ships the doc, and the agent stops without asking the ship question or calling `mark_design_doc_shipped` to hurry it. Manual ships keep the question, relay and criteria exception rules. Docs without criteria keep the existing flow without close-out.
