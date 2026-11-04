@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.0
+
+- AI reviews. `working-under-a-design-doc` reads a doc's AI reviews with `list_ai_reviews` and `get_ai_review` before acting, checks each open finding against the doc and code instead of taking it as given, and starts a review with `start_ai_review` only when the user asks. `writing-a-design-doc` treats open findings like unchecked review comments when addressing feedback. An AI review is advice and never an approval.
+- Adds `list_ai_reviews`, `get_ai_review` and `start_ai_review` to the tool list.
+- Needs the ArchDocs server with AI reviews. Release this version only after that server is live.
+
 ## 0.16.0
 
 - Supporting docs. `working-under-a-design-doc` says when to create a supporting doc (a runbook, test plan or investigation that would otherwise be pasted into the plan or repeated in the Work Log), how to find the one a task needs from `get_design_doc` `supportingDocs` or `get_task_context` without loading every body, how to record each attempt as a Work Log entry with a `SUPPORTING_DOC` reference pinned to the revision used, and how to revise a procedure with `expectedRevision`. Failed attempts keep their own entries, staging results stay staging results, and a supporting doc is never approval or evidence.

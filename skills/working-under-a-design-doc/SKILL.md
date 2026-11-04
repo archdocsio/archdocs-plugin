@@ -50,6 +50,8 @@ Results carry a `url` for the exact item they wrote or read: a journal entry, a 
 
 5. When `get_design_doc` or the handoff includes `contextUsed`, read it: the guidance earlier sessions recorded as used in this change, how they treated it, and the checks linked to it. `list_context_used` has the full list. A row with "Source changed since recorded" (`pinCurrent: false`) needs a look before you build on it.
 
+6. When the server offers them, call `list_ai_reviews` for the design doc and read each review with open findings using `get_ai_review`. A finding is one model's advice, not a decision or an approval. Check each one against the doc and the code before acting on it. Fix the ones that hold up, raise a question for the ones a person has to decide, and say why you set one aside. Start a new review with `start_ai_review` only when the user asks for one. The organization may not allow agents to start reviews, and each one uses AI credits.
+
 Then tell the user where things stand, from the record, name the boundary you're working to, and continue.
 
 When resuming a doc whose `status` is `VERIFYING`, read `verifying.hold` from `get_design_doc`. A `waiting` hold needs nothing; `attention` means a check failed or a question is open, so act on what is yours or name it for the user; `ready` means a person can ship by hand. Read its `reasons`, `message` and `outstanding` checks for the handoff. A null hold lists no hold; don't invent one or infer that the doc shipped.

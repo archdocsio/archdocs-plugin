@@ -150,6 +150,8 @@ Don't hold either call back because questions are open: questions are tracked on
 
 Reviewers leave comments on variations. When the user asks you to address review feedback, read the threads with `list_comment_threads` on the design doc, make the change (see section 10), reply on each thread with `reply_to_comment_thread` saying what you changed, and resolve it with `resolve_comment_thread` only when the change fully answers it. Leave a thread open, with a reply, when you disagree or only partly addressed it. An approved variation needs an amendment before any of this (section 10).
 
+AI reviews are another source of feedback. When the server offers them, `list_ai_reviews` lists a doc's reviews and `get_ai_review` returns their findings with status and evidence. Treat an open finding like a reviewer's comment you haven't checked yet. Confirm it against the doc and code, then make the change or explain in your reply to the user why you didn't. A finding a person posted as a comment is answered in that comment thread. AI reviews never approve a variation and never count toward its required approvals.
+
 ## 14. Finish
 
 End by giving the user the design doc number and link, the list of open questions, and anything that needs a person: approvals, unresolved mentions, an amendment. Link each question and variation by the `url` its tool returned, not the doc's.
