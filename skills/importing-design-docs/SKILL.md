@@ -22,13 +22,14 @@ Classify each file as one of:
 - **RFC or design page**: design and rollout in one document.
 - **decision record**: MADR shape (Context, Decision, Consequences, Options) or an `adr/NNNN-*.md` path.
 - **implementation report or evidence**: a write-up of what actually shipped, often `*-report.md` next to a plan. It becomes the `evidence` variation of the document it reports on.
+- **work log**: a running log of the work, with one dated entry after another (`worklog.md`, `## 2026-03-04` headings, a progress section that grows by date). It becomes the journal of the document it logs. A single resume or handoff note is not a work log.
 - **not a document**: README, index, template, meeting notes, changelog, outlines, manual QA checklists, resume or handoff notes, review suggestions. List these for the user; don't import them.
 
 Use the signals the files give you: frontmatter, the first heading, filename patterns (`2026-03-04-billing-design.md` and `2026-03-04-billing.md`, `RFC-042-*.md`, `0007-use-postgres.md`), Notion CSV properties. When you cannot classify a file, put it in the table as unclassified with your best guess marked, and let the person decide.
 
 ## 2. Pair, date and identify
 
-Pair a spec with its plan when they share a topic slug and were written close together. A pair becomes one design doc with two variations. Classify by the file's name and content, not by the folder it sits in: a plans folder often holds reports, outlines and checklists, and a specs folder may hold `*-plan.md` files. A plan written in phases (`...-phase-1-...`, `...-phase-2-...`, `...-00-contracts.md`) is one plan variation: join the files in filename order, each under a comment naming its file. A report that matches the slug becomes the evidence variation. An RFC that mixes design and rollout stays one document and lands whole in the spec variation unless the person asks to split it; when they do, say in the table which headings go to the plan.
+Pair a spec with its plan when they share a topic slug and were written close together. A pair becomes one design doc with two variations. Classify by the file's name and content, not by the folder it sits in: a plans folder often holds reports, outlines and checklists, and a specs folder may hold `*-plan.md` files. A plan written in phases (`...-phase-1-...`, `...-phase-2-...`, `...-00-contracts.md`) is one plan variation: join the files in filename order, each under a comment naming its file. A report that matches the slug becomes the evidence variation, and a work log that matches it becomes that document's journal. An RFC that mixes design and rollout stays one document and lands whole in the spec variation unless the person asks to split it; when they do, say in the table which headings go to the plan.
 
 For each document, find:
 
@@ -47,7 +48,7 @@ Present one table, one row per document to import:
 
 | file(s) | title | variations | status | date | author | external id | superseded by | notes |
 
-Mark every guess in the notes column. Below the table list the files you skipped and why. Ask the person to approve, edit or drop rows. Do not call `import_design_doc` before they answer. For more than about fifty documents, offer a first batch of ten so they can check the result in the app before the rest goes in.
+For a work log, write `journal (N entries)` in the variations column, and in the notes say which entries carry only a day and no time. Mark every guess in the notes column. Below the table list the files you skipped and why. Ask the person to approve, edit or drop rows. Do not call `import_design_doc` before they answer. For more than about fifty documents, offer a first batch of ten so they can check the result in the app before the rest goes in.
 
 ## 4. Import
 
@@ -67,6 +68,17 @@ Decision records go through `create_adr` with `historical: true`: `status` (`ACC
 
 Each result carries the document's `url`. Keep them for the report.
 
+### Work logs
+
+`import_design_doc` takes document variations only, so a work log goes in after its document has landed, one `add_journal_entry` call per entry:
+
+- `designDocId` from the import result, and `variation` set to the key of the organization's journal type (the type with `contentMode: "JOURNAL"` in `list_design_doc_types`, usually `work-log`).
+- `kind` from that journal type's entry kinds: `progress` unless the entry plainly records a decision or a change from the plan.
+- `summary` is the entry's first line or heading, cut to 300 characters. `body` is the rest of the entry as written.
+- `occurredAt` is the entry's own date and time, in ISO 8601 with an offset. When the log gives a day and no time, use noon UTC that day (`2026-03-04T12:00:00Z`) so the entry stays on its day in every time zone, and say so in the notes column. When an entry has no date at all, ask the person. Never leave `occurredAt` out of an imported entry, because then the entry is dated today.
+
+Replay oldest first. Archdocs numbers entries in the order you add them, so a log replayed newest first reads backwards. Entries are recorded under your token. When the log names who wrote an entry, that name stays in the text. Journal entries are not idempotent, so a second run adds every entry again. Before replaying into a journal that already has entries, read it with `list_journal_entries` and add only what's missing.
+
 ## 5. After the import
 
 - Each result lists `unresolved` names that didn't match a catalog object. Fix them with `link_design_doc_mentions` when the right object exists, or report them.
@@ -80,7 +92,7 @@ After the first batch, open two or three results in the app (their `url`) and co
 
 ## 7. Report
 
-Tell the person what landed: how many documents, with each one's `url`; the rows they dropped; the unresolved names; and anything the server refused, with the reason. Imported documents already carry their status, so there is nothing to ship or mark ready. Stop there unless they ask for the next batch.
+Tell the person what landed: how many documents, with each one's `url`; how many journal entries went into each work log; the rows they dropped; the unresolved names; and anything the server refused, with the reason. Imported documents already carry their status, so there is nothing to ship or mark ready. Stop there unless they ask for the next batch.
 
 ## What not to do
 
@@ -89,3 +101,4 @@ Tell the person what landed: how many documents, with each one's `url`; the rows
 - Don't guess silently. A guess goes in the notes column; an empty field stays empty.
 - Don't use `create_design_doc` plus `write_design_doc_variation` for history. That path creates a draft dated today, authored by the token holder, and an agent cannot ship it.
 - Don't import a document people are still editing elsewhere as SHIPPED. Ask where it lives now.
+- Don't replay a work log without `occurredAt`, newest first, or twice.
