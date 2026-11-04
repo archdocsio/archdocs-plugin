@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.18.0
+
+- Bug fixes leave a lesson behind. `using-design-docs` treats any bug fix, regression, failing check or report of broken or slow behavior as a change: the agent calls `get_task_context` with the symptom and suspected paths before fixing, and reads the findings it returns. Once the root cause is known, the agent runs `git blame` (and `git log -S` for moved code) on each cause, follows each commit to the design doc that introduced it, records the lesson on that doc's journal without being asked, and proposes it with `propose_knowledge_item` by `entryNumber` with code locations wide enough to match future work on the same kind of code. Without a journal the lesson goes in the Deviations thread; without any doc to write to, the agent tells the user where it belongs. The final message names the origin doc and links the entry and the proposed item.
+- Lessons must be general. The skill gives the shape (rule, why it fails, a check that catches it, then where it happened) with a bad, incident-only example and a good one.
+- `working-under-a-design-doc` and `writing-a-design-doc` require a plan to say how it accounts for a finding on its paths and to include the finding's check. Journal captures are written as a general rule with a check. A Bug fix plan names the commit and design doc that introduced the cause.
+
 ## 0.17.0
 
 - AI reviews. `working-under-a-design-doc` reads a doc's AI reviews with `list_ai_reviews` and `get_ai_review` before acting, checks each open finding against the doc and code instead of taking it as given, and starts a review with `start_ai_review` only when the user asks. `writing-a-design-doc` treats open findings like unchecked review comments when addressing feedback. An AI review is advice and never an approval.
