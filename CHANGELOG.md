@@ -27,6 +27,11 @@
 - Adds `close_out_design_doc` to the tool list and Work Log hook matchers. Evals keep manual shipping for docs without criteria and include Verifying in status checks.
 - Needs the ArchDocs server with DD-0037 (close_out_design_doc, changeType.shipsAutomatically, verifying on get_design_doc). Release this version only after that server is live.
 
+## 0.14.1
+
+- `importing-design-docs` imports work logs. A dated running log that matches a document becomes its journal: after `import_design_doc`, the agent replays each entry oldest first with `add_journal_entry` and passes the entry's own time as `occurredAt`, so imported entries keep their real dates instead of the import date. A day with no time becomes noon UTC and is marked in the mapping table. The agent reads an existing journal before replaying, because entries are not idempotent.
+- Needs the ArchDocs server with `occurredAt` on `add_journal_entry`.
+
 ## 0.14.0
 
 - Design docs follow their change type. `writing-a-design-doc` reads `changeTypes`, `defaultChangeType` and `changeTypesEntitled` from `list_design_doc_types`, picks a type by comparing the work to each type's `whenToUse`, tells the user which type and why, and passes `changeType` to `create_design_doc`. When the fit is unclear the agent asks; without entitlement it uses the default. After creating the doc, the agent writes the variations from the doc's pinned `changeType.entries` and `types`: the before-work document entries required for its size, the `intentSource` entry first. A Bug fix gets no spec.
