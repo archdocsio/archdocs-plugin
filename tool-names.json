@@ -122,6 +122,7 @@
     "set_doc_owner",
     "set_planned_changes",
     "start_ai_review",
+    "submit_ai_review",
     "submit_evidence",
     "submit_feedback",
     "supersede_adr",

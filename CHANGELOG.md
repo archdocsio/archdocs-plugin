@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.19.0
+
+- Your agent can review a design doc. New skill `reviewing-a-design-doc`: the agent reads the doc with `get_design_doc` and `get_task_context`, reads the code the doc names when it is checked out, writes a few findings in the five AI review kinds with exact quotes, and uploads them in one `submit_ai_review` call. The review is labelled as the agent's, spends no AI credits, and cannot be discussed or re-run. The skill stays short on purpose and points to the ArchDocs reviewer for depth.
+- Adds `submit_ai_review` to the tool list.
+- Needs the ArchDocs server with agent-uploaded reviews (DD-0052). Release this version only after that server is live.
+
 ## 0.18.0
 
 - Bug fixes leave a lesson behind. `using-design-docs` treats any bug fix, regression, failing check or report of broken or slow behavior as a change: the agent calls `get_task_context` with the symptom and suspected paths before fixing, and reads the findings it returns. Once the root cause is known, the agent runs `git blame` (and `git log -S` for moved code) on each cause, follows each commit to the design doc that introduced it, records the lesson on that doc's journal without being asked, and proposes it with `propose_knowledge_item` by `entryNumber` with code locations wide enough to match future work on the same kind of code. Without a journal the lesson goes in the Deviations thread; without any doc to write to, the agent tells the user where it belongs. The final message names the origin doc and links the entry and the proposed item.
